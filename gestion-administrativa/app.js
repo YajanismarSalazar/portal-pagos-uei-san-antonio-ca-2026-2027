@@ -531,6 +531,52 @@
 
     return {
       id: row.id,
+      fecha: row.fecha || fechaCorta,
+      referencia: row.referencia || "",
+      seccion: row.seccion || (registroPadron ? registroPadron.seccion : ""),
+      alumno: row.alumno || (registroPadron ? registroPadron.alumno : ""),
+      representante:
+        row.representante ||
+        (registroPadron ? (registroPadron.representante || registroPadron.rep || registroPadron.ced_rep || "") : row.cedula_representante || ""),
+      concepto: row.concepto || (row.meses ? `Mensualidad: ${row.meses}` : "Mensualidad"),
+      metodo: row.metodo || "Transferencia / Pago Móvil",
+      monto: montoValido,
+      motivo: row.motivo || "",
+      estado: row.estado || "En Revisión"
+    };
+  });
+
+  if (typeof CLAVE_PAGOS_REP !== "undefined") {
+    localStorage.setItem(CLAVE_PAGOS_REP, JSON.stringify(listaNormalizada));
+  } else {
+    localStorage.setItem("pagos_representante_uei_san_antonio", JSON.stringify(listaNormalizada));
+  }
+
+  window.__PAGOS_ADMIN_SUPABASE__ = listaNormalizada;
+  return listaNormalizada;
+}
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Error cargando pagos desde Supabase (${resp.status}): ${errText}`);
+  }
+
+  const filas = await resp.json();
+  const listaNormalizada = (Array.isArray(filas) ? filas : []).map((row) => {
+    const registroPadron = typeof INITIAL_REGISTROS !== "undefined" && Array.isArray(INITIAL_REGISTROS)
+      ? INITIAL_REGISTROS.find(
+          (r) =>
+            (row.cedula_alumno && String(r.ced || "").trim() === String(row.cedula_alumno).trim()) ||
+            (row.cedula_representante && String(r.ced_rep || "").trim() === String(row.cedula_representante).trim())
+        )
+      : null;
+
+    const fechaCorta = row.created_at ? String(row.created_at).slice(0, 10) : "";
+    const montoNum = Number(row.monto);
+    const montoValido = Number.isFinite(montoNum) ? montoNum : 0;
+
+    return {
+      id: row.id,
       supabaseId: row.id,
       fecha: row.fecha || fechaCorta,
       created_at: row.created_at,
