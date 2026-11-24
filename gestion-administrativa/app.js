@@ -2,8 +2,8 @@
   "use strict";
 
   const SUPABASE_URL = "https://lnluwygaehlqsdpwouvv.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_i7qcIcbkjSjZkqjVSt-jUA_ZR7RQlTA";
-const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_i7qcIcbkjSjZkqjVSt-jUA_ZR7RQlTA";
+  const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
   const CLAVE_PAGOS_REP = "pagos_representantes_v1";
   const CLAVE_ESTADOS_MESES_ALU = "estados_meses_alumnos_v1";
   const CLAVE_LIMPIEZA_INICIAL = "limpieza_inicial_pagos_v1";
@@ -24,6 +24,54 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
     { key: "AGOSTO",     label: "Agosto 2027",     year: 2027, month: 8 }
   ];
 
+  function cabecerasAdminSupabase() {
+    return {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_PUBLISHABLE_KEY,
+      "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+      "Prefer": "return=representation"
+    };
+  }
+
+  async function cargarPagosAdminSupabase() {
+    const url = `${SUPABASE_PAGOS_ENDPOINT}?select=*&order=created_at.desc`;
+    const resp = await fetch(url, {
+      method: "GET",
+      headers: cabecerasAdminSupabase()
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`Error cargando pagos en admin (${resp.status}): ${errText}`);
+    }
+
+    const datos = await resp.json();
+    const lista = Array.isArray(datos) ? datos : [];
+    if (typeof guardarPagosRepresentanteStorage === "function") {
+      guardarPagosRepresentanteStorage(lista);
+    }
+    return lista;
+  }
+
+  async function actualizarEstadoPagoSupabase(idPago, nuevoEstado, motivo = "") {
+    const url = `${SUPABASE_PAGOS_ENDPOINT}?id=eq.${encodeURIComponent(idPago)}`;
+    const resp = await fetch(url, {
+      method: "PATCH",
+      headers: cabecerasAdminSupabase(),
+      body: JSON.stringify({
+        estado: nuevoEstado,
+        motivo: motivo
+      })
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`Error actualizando estado en Supabase (${resp.status}): ${errText}`);
+    }
+
+    const actualizado = await resp.json();
+    return Array.isArray(actualizado) ? actualizado[0] : actualizado;
+  }
   const INITIAL_REGISTROS = [
     {"seccion": "1A", "ced": "R-2024595", "alumno": "RIVAS CORREA, ALBERTH JESUS", "sexo": "M", "f_nac": "27/8/2014", "ced_rep": "V-15477349", "representante": "RIVAS VASQUEZ, AMABLE DE JESUS", "telefonos": "04264607958", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
     {"seccion": "1A", "ced": "V-36152572", "alumno": "PALACIO PEREZ, KAMILA ALEJANDRA", "sexo": "F", "f_nac": "2/7/2014", "ced_rep": "V-26330201", "representante": "PEREZ BELTRAN, CARMEN TERESA", "telefonos": "04164038412 - 04249042951", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},

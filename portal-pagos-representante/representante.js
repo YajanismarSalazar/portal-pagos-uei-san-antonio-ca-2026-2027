@@ -2,8 +2,8 @@
   "use strict";
 
   const SUPABASE_URL = "https://lnluwygaehlqsdpwouvv.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_i7qcIcbkjSjZkqjVSt-jUA_ZR7RQlTA";
-const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_i7qcIcbkjSjZkqjVSt-jUA_ZR7RQlTA";
+  const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
   const WHATSAPP_INSTITUCION = "584248912975";
   const CLAVE_PAGOS_REP = "pagos_representantes_v1";
   const CLAVE_ESTADOS_MESES_ALU = "estados_meses_alumnos_v1";
@@ -66,6 +66,50 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
 
   function guardarHistorialPagosRep(lista) {
     localStorage.setItem(CLAVE_PAGOS_REP, JSON.stringify(lista));
+  }
+
+  function cabecerasSupabase() {
+    return {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_PUBLISHABLE_KEY,
+      "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+      "Prefer": "return=representation"
+    };
+  }
+
+  async function enviarPagoASupabase(registroPago) {
+    const metodoEl = document.getElementById("metodoPago") || document.getElementById("metodo");
+    const metodoValor = metodoEl && metodoEl.value ? metodoEl.value.trim() : "Transferencia / Pago Móvil";
+
+    const payload = {
+      referencia: String(registroPago.pago?.nroReferencia || "").trim(),
+      alumno: String(registroPago.alumno?.nombreApellido || "").trim(),
+      cedula_alumno: String(registroPago.alumno?.cedula || "").trim(),
+      cedula_representante: String(registroPago.representante?.cedula || "").trim(),
+      seccion: String(registroPago.alumno?.gradoSeccion || "").trim(),
+      meses: Array.isArray(registroPago.mesesPagados)
+        ? registroPago.mesesPagados.join(", ")
+        : String(registroPago.pago?.concepto || ""),
+      metodo: metodoValor,
+      monto: Number(registroPago.pago?.montoBs || registroPago.pago?.montoUsd || 0) || 0,
+      tasa_bcv: Number(registroPago.tasaAplicada || 0) || 0,
+      estado: "Pendiente",
+      motivo: ""
+    };
+
+    const resp = await fetch(SUPABASE_PAGOS_ENDPOINT, {
+      method: "POST",
+      headers: cabecerasSupabase(),
+      body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`Error al guardar en Supabase (${resp.status}): ${errText}`);
+    }
+
+    const data = await resp.json();
+    return Array.isArray(data) ? data[0] : data;
   }
 
   function leerEstadosMesesGlobal() {
@@ -453,7 +497,7 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
 
     const form = document.getElementById("formPagoRepresentante");
     if (form) {
-      form.addEventListener("submit", (e) => {
+      form.addEventListener("submit", async (e) => {
         e.preventDefault();
         if (!registroActual || !alumnoSeleccionadoActual) return;
 
@@ -512,6 +556,16 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
           guardarEstadosMesesGlobal(todosEstados);
         }
 
+        const msgEl = document.getElementById("mensajeEstado");
+        let guardadoEnNube = false;
+
+        try {
+          await enviarPagoASupabase(registro);
+          guardadoEnNube = true;
+        } catch (err) {
+          console.error(err);
+        }
+
         const urlWa = construirUrlWhatsapp(registro, fechaLegible);
         window.open(urlWa, "_blank", "noopener");
 
@@ -524,10 +578,11 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
         if (montoBsEl) montoBsEl.value = "";
         actualizarResumenLateral(0, 0, 0);
 
-        const msgEl = document.getElementById("mensajeEstado");
         if (msgEl) {
-          msgEl.style.color = "#15803d";
-          msgEl.textContent = `Pago registrado (Ref: ${registro.pago.nroReferencia}). Los meses seleccionados pasaron a "En revisión" y se abrió WhatsApp para enviar el capture.`;
+          msgEl.style.color = guardadoEnNube ? "#15803d" : "#b45309";
+          msgEl.textContent = guardadoEnNube
+            ? `Pago registrado en Supabase (Ref: ${registro.pago.nroReferencia}). Los meses seleccionados pasaron a "En revisión" y se abrió WhatsApp.`
+            : `Pago guardado localmente (Ref: ${registro.pago.nroReferencia}), pero hubo un problema al sincronizar con Supabase. Revisa la consola.`;
         }
       });
     }
