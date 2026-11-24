@@ -34,25 +34,51 @@
   }
 
   async function cargarPagosAdminSupabase() {
-    const url = `${SUPABASE_PAGOS_ENDPOINT}?select=*&order=created_at.desc`;
-    const resp = await fetch(url, {
-      method: "GET",
-      headers: cabecerasAdminSupabase()
-    });
+  const url = `${SUPABASE_URL}/rest/v1/pagos?select=*&order=created_at.desc`;
+  const resp = await fetch(url, {
+    method: "GET",
+    headers: cabecerasAdminSupabase()
+  });
 
-    if (!resp.ok) {
-      const errText = await resp.text();
-      throw new Error(`Error cargando pagos en admin (${resp.status}): ${errText}`);
-    }
-
-    const datos = await resp.json();
-    const lista = Array.isArray(datos) ? datos : [];
-    if (typeof guardarPagosRepresentanteStorage === "function") {
-      guardarPagosRepresentanteStorage(lista);
-    }
-    return lista;
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Error cargando pagos desde Supabase (${resp.status}): ${errText}`);
   }
 
+  const filas = await resp.json();
+  const listaNormalizada = (Array.isArray(filas) ? filas : []).map((row) => {
+    const registroPadron = typeof INITIAL_REGISTROS !== "undefined" && Array.isArray(INITIAL_REGISTROS)
+      ? INITIAL_REGISTROS.find(
+          (r) =>
+            (row.cedula_alumno && String(r.ced || "").trim() === String(row.cedula_alumno).trim()) ||
+            (row.cedula_representante && String(r.ced_rep || "").trim() === String(row.cedula_representante).trim())
+        )
+      : null;
+
+    const fechaCorta = row.created_at ? String(row.created_at).slice(0, 10) : "";
+    const montoNum = Number(row.monto);
+    const montoValido = Number.isFinite(montoNum) ? montoNum : 0;
+
+    return {
+      id: row.id,
+      fecha: row.fecha || fechaCorta,
+      referencia: row.referencia || "",
+      seccion: row.seccion || (registroPadron ? registroPadron.seccion : ""),
+      alumno: row.alumno || (registroPadron ? registroPadron.alumno : ""),
+      representante:
+        row.representante ||
+        (registroPadron ? (registroPadron.representante || registroPadron.rep || registroPadron.ced_rep || "") : row.cedula_representante || ""),
+      concepto: row.concepto || (row.meses ? `Mensualidad: ${row.meses}` : "Mensualidad"),
+      metodo: row.metodo || "Transferencia / Pago Móvil",
+      monto: montoValido,
+      motivo: row.motivo || "",
+      estado: row.estado || "En Revisión"
+    };
+  });
+
+  guardarPagosRepresentanteStorage(listaNormalizada);
+  return listaNormalizada;
+}
   async function actualizarEstadoPagoSupabase(idPago, nuevoEstado, motivo = "") {
     const url = `${SUPABASE_PAGOS_ENDPOINT}?id=eq.${encodeURIComponent(idPago)}`;
     const resp = await fetch(url, {
