@@ -1,6 +1,9 @@
 (function () {
   "use strict";
 
+  const SUPABASE_URL = "https://lnluwygaehlqsdpwouvv.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_i7qcIcbkjSjZkqjVSt-jUA_ZR7RQlTA";
+const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
   const CLAVE_PAGOS_REP = "pagos_representantes_v1";
   const CLAVES_PAGOS_POSIBLES = [
     "pagos_representantes_v1",
