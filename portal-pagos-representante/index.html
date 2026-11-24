@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal de Pagos - UEI San Antonio</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 55%, #e0f2fe 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px;
+      color: #1f2937;
+      box-sizing: border-box;
+    }
+    .contenedor {
+      max-width: 1280px;
+      width: 100%;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 28px 34px;
+      border-radius: 14px;
+      border: 1px solid #bfdbfe;
+      box-shadow: 0 8px 24px rgba(3, 105, 161, 0.08);
+      box-sizing: border-box;
+    }
+    .badge-modulo {
+      display: inline-block;
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: bold;
+      letter-spacing: 0.4px;
+    }
+    .top-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .caja-tasa {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+    }
+    .caja-cuenta {
+      background: #f0f9ff;
+      border-left: 4px solid #0284c7;
+      padding: 14px 18px;
+      border-radius: 6px;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    .caja-busqueda {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      padding: 18px 20px;
+      border-radius: 8px;
+      margin: 18px 0 24px;
+    }
+    .fila-buscar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .fila-buscar input {
+      flex: 1;
+      min-width: 240px;
+    }
+    .btn-buscar {
+      background: #0369a1;
+      color: #fff;
+      padding: 10px 24px;
+      border: none;
+      border-radius: 7px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-buscar:hover {
+      background: #0284c7;
+    }
+    .layout-dos-columnas {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(350px, 1fr);
+      gap: 26px;
+      align-items: start;
+    }
+    @media (max-width: 960px) {
+      .layout-dos-columnas {
+        grid-template-columns: 1fr;
+      }
+    }
+    .columna-izquierda,
+    .columna-derecha {
+      background: #ffffff;
+    }
+    .caja-deuda {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      padding: 18px;
+      border-radius: 10px;
+    }
+    .leyenda-estados {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .leyenda-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+    }
+    .punto {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .punto-revision { background: #dc2626; }
+    .punto-aprobado { background: #16a34a; }
+    .punto-rechazado { background: #ea580c; }
+    .punto-pendiente { background: #f59e0b; }
+
+    .chips-meses {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .chip-mes {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      color: #78350f;
+      padding: 9px 11px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+    .chip-mes-fila {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .chip-estado-tag {
+      font-size: 11px;
+      padding-left: 20px;
+      opacity: 0.95;
+    }
+    .chip-mes.estado-revision {
+      background: #dc2626;
+      border-color: #991b1b;
+      color: #ffffff;
+    }
+    .chip-mes.estado-aprobado {
+      background: #16a34a;
+      border-color: #166534;
+      color: #ffffff;
+    }
+    .chip-mes.estado-rechazado {
+      background: #ea580c;
+      border-color: #9a3412;
+      color: #ffffff;
+    }
+    .chip-mes.seleccionado:not(.estado-revision):not(.estado-aprobado):not(.estado-rechazado) {
+      background: #0369a1;
+      border-color: #0369a1;
+      color: #ffffff;
+    }
+    .chip-mes input {
+      width: auto;
+      margin: 0;
+      cursor: pointer;
+    }
+    .resumen-total {
+      margin-top: 16px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .resumen-total strong {
+      color: #0f172a;
+    }
+    h2 {
+      margin-top: 22px;
+      margin-bottom: 14px;
+      font-size: 17px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 8px;
+      color: #0f172a;
+    }
+    h2:first-child {
+      margin-top: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    input[readonly] {
+      background: #f8fafc;
+      color: #334155;
+      font-weight: 600;
+    }
+    .acciones {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    .btn-registrar-wa {
+      background: #16a34a;
+      color: #fff;
+      padding: 13px 24px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 15px;
+      width: 100%;
+    }
+    .btn-registrar-wa:hover {
+      background: #15803d;
+    }
+    .nota {
+      font-size: 12.5px;
+      color: #475569;
+      margin-top: 10px;
+      line-height: 1.45;
+    }
+    #mensajeBusqueda {
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    #mensajeEstado {
+      margin-top: 14px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .oculto {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="contenedor">
+    <span class="badge-modulo">PORTAL DE PAGOS</span>
+
+    <div class="top-bar">
+      <div class="caja-tasa" id="infoTasa">
+        Cargando tasa USD del día...
+      </div>
+
+      <div class="caja-cuenta">
+        <strong>ÚNICA CUENTA AUTORIZADA PARA PAGOS:</strong><br />
+        <strong>Titular:</strong> UEI SAN ANTONIO CA | <strong>Banco:</strong> Bancamiga<br />
+        <strong>RIF:</strong> J303927017 | <strong>Teléfono:</strong> 04248912975
+      </div>
+    </div>
+
+    <!-- Paso 1: Búsqueda por cédula -->
+    <div class="caja-busqueda">
+      <label for="inputBuscarCedula">Ingresa número de cédula del alumno o representante *</label>
+      <div class="fila-buscar">
+        <input type="text" id="inputBuscarCedula" placeholder="Ej. 12345678 o V-12345678" />
+        <button type="button" id="btnBuscarCedula" class="btn-buscar">Buscar</button>
+      </div>
+      <div id="mensajeBusqueda"></div>
+    </div>
+
+    <!-- Paso 2: Formulario precargado en 2 columnas (oculto hasta buscar) -->
+    <form id="formPagoRepresentante" class="oculto">
+      <div class="layout-dos-columnas">
+        <div class="columna-izquierda">
+          <h2>Datos del Representante (Facturación)</h2>
+          <div class="grid">
+            <div>
+              <label for="repNombre">Nombre y Apellido *</label>
+              <input type="text" id="repNombre" readonly required />
+            </div>
+            <div>
+              <label for="repCedula">Cédula *</label>
+              <input type="text" id="repCedula" readonly required />
+            </div>
+            <div>
+              <label for="repDireccion">Dirección *</label>
+              <input type="text" id="repDireccion" readonly required />
+            </div>
+            <div>
+              <label for="repTelefono">Teléfono *</label>
+              <input type="text" id="repTelefono" readonly required />
+            </div>
+          </div>
+
+          <h2>Datos del Alumno</h2>
+          <div class="grid">
+            <div id="contenedorSelectorAlumno" class="oculto">
+              <label for="selectorAlumno">Seleccionar Alumno a Pagar *</label>
+              <select id="selectorAlumno"></select>
+            </div>
+            <div>
+              <label for="aluNombre">Nombre y Apellido *</label>
+              <input type="text" id="aluNombre" readonly required />
+            </div>
+            <div>
+              <label for="aluGradoSeccion">Grado y Sección *</label>
+              <input type="text" id="aluGradoSeccion" readonly required />
+            </div>
+          </div>
+
+          <h2>Datos del Pago</h2>
+          <div class="grid">
+            <div>
+              <label for="montoUsd">Monto en USD ($) *</label>
+              <input type="number" step="0.01" min="0.01" id="montoUsd" required />
+            </div>
+            <div>
+              <label for="montoBs">Equivalente en Bolívares (Bs.)</label>
+              <input type="text" id="montoBs" readonly />
+            </div>
+            <div>
+              <label for="nroReferencia">Número de Referencia *</label>
+              <input type="text" id="nroReferencia" required placeholder="Ej. 0012345678" />
+            </div>
+            <div>
+              <label for="concepto">Concepto / Mes a pagar</label>
+              <input type="text" id="concepto" placeholder="Ej. Mensualidad: Septiembre 2026" />
+            </div>
+          </div>
+
+          <p class="nota">
+            - Cada mensualidad tiene un valor fijo de <strong>$50 USD</strong>. Al seleccionar meses, se calcula el total en USD y su equivalente en Bs.<br />
+            - Al pulsar el botón, se registrará el pago, los meses seleccionados pasarán a <strong>En revisión (rojo)</strong> y se abrirá WhatsApp para enviar el capture.
+          </p>
+
+          <div class="acciones">
+            <button type="submit" id="btnRegistrarYWhatsapp" class="btn-registrar-wa">
+              Registrar y enviar el capture por WhatsApp
+            </button>
+          </div>
+
+          <div id="mensajeEstado"></div>
+        </div>
+
+        <div class="columna-derecha">
+          <div id="cajaMesesPendientes" class="caja-deuda">
+            <strong>Meses del año escolar ($50 c/u):</strong>
+            <div class="leyenda-estados">
+              <span class="leyenda-item"><span class="punto punto-pendiente"></span> Disponible</span>
+              <span class="leyenda-item"><span class="punto punto-revision"></span> En revisión</span>
+              <span class="leyenda-item"><span class="punto punto-aprobado"></span> Pagado</span>
+              <span class="leyenda-item"><span class="punto punto-rechazado"></span> Rechazado</span>
+            </div>
+            <div id="listaMesesPendientes" class="chips-meses"></div>
+            <div class="nota">Marca los meses a cancelar. Si un mes ya está en revisión o pagado, quedará bloqueado; si fue rechazado, podrás volver a seleccionarlo.</div>
+
+            <div class="resumen-total" id="estadoReportesAlumno" style="margin-bottom:14px;"></div>
+
+            <div class="resumen-total" id="resumenCalculo">
+              <div><strong>Meses seleccionados:</strong> <span id="resumenMesesCount">0</span></div>
+              <div><strong>Total a pagar (USD):</strong> <span id="resumenTotalUsd">$0,00</span></div>
+              <div><strong>Total a pagar (Bs.):</strong> <span id="resumenTotalBs">0,00 Bs.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script src="../js/config-tasa-bcv.js"></script>
+  <script src="./padron_data.js"></script>
+  <script src="./representante.js"></script>
+</body>
+</html>
