@@ -982,14 +982,24 @@
       }
     });
   }
-
-  document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     if (!localStorage.getItem(CLAVE_LIMPIEZA_INICIAL)) {
       localStorage.removeItem(CLAVE_PAGOS_REP);
       localStorage.removeItem(CLAVE_ESTADOS_MESES_ALU);
       localStorage.setItem(CLAVE_LIMPIEZA_INICIAL, "hecho");
     }
-    inicializarEventos();
-    renderTodo();
+    if (typeof inicializarEventos === "function") {
+      inicializarEventos();
+    }
+    try {
+      if (typeof cargarPagosAdminSupabase === "function") {
+        await cargarPagosAdminSupabase();
+      }
+    } catch (err) {
+      console.error("Error cargando pagos desde Supabase:", err);
+    }
+    if (typeof renderTodo === "function") {
+      renderTodo();
+    }
   });
 })();
