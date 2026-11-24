@@ -477,10 +477,59 @@
     }
   }
 
-  function guardarPagosRepresentanteStorage(lista) {
-    localStorage.setItem(CLAVE_PAGOS_REP, JSON.stringify(lista));
+  async function cargarPagosAdminSupabase() {
+  const url = `${SUPABASE_URL}/rest/v1/pagos?select=*&order=created_at.desc`;
+  const resp = await fetch(url, {
+    method: "GET",
+    headers: cabecerasAdminSupabase()
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Error cargando pagos desde Supabase (${resp.status}): ${errText}`);
   }
 
+  const filas = await resp.json();
+  const listaNormalizada = (Array.isArray(filas) ? filas : []).map((row) => {
+    const registroPadron = typeof INITIAL_REGISTROS !== "undefined" && Array.isArray(INITIAL_REGISTROS)
+      ? INITIAL_REGISTROS.find(
+          (r) =>
+            (row.cedula_alumno && String(r.ced || "").trim() === String(row.cedula_alumno).trim()) ||
+            (row.cedula_representante && String(r.ced_rep || "").trim() === String(row.cedula_representante).trim())
+        )
+      : null;
+
+    const fechaCorta = row.created_at ? String(row.created_at).slice(0, 10) : "";
+    const montoNum = Number(row.monto);
+    const montoValido = Number.isFinite(montoNum) ? montoNum : 0;
+
+    return {
+      id: row.id,
+      supabaseId: row.id,
+      fecha: row.fecha || fechaCorta,
+      created_at: row.created_at,
+      referencia: row.referencia || "",
+      seccion: row.seccion || (registroPadron ? registroPadron.seccion : ""),
+      alumno: row.alumno || (registroPadron ? registroPadron.alumno : ""),
+      cedulaAlumno: row.cedula_alumno || (registroPadron ? registroPadron.ced : ""),
+      representante:
+        row.representante ||
+        (registroPadron ? (registroPadron.representante || registroPadron.rep || registroPadron.ced_rep || "") : row.cedula_representante || ""),
+      cedulaRepresentante: row.cedula_representante || (registroPadron ? registroPadron.ced_rep : ""),
+      concepto: row.concepto || (row.meses ? `Mensualidad: ${row.meses}` : "Mensualidad"),
+      meses: row.meses || "",
+      metodo: row.metodo || "Transferencia / Pago Móvil",
+      monto: montoValido,
+      montoUsd: montoValido,
+      tasaBcv: row.tasa_bcv || 0,
+      estado: row.estado || "En Revisión",
+      motivo: row.motivo || ""
+    };
+  });
+
+  guardarPagosRepresentanteStorage(listaNormalizada);
+  return listaNormalizada;
+}
   function actualizarEstadoMesesEnPortalStorage(pago, nuevoEstadoMes) {
     const meses = Array.isArray(pago.mesesPagados) && pago.mesesPagados.length > 0
       ? pago.mesesPagados
