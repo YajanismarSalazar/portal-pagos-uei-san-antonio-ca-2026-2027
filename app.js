@@ -1,9 +1,12 @@
 (function () {
   "use strict";
 
-  const SUPABASE_URL = "https://lnluwygaehlqsdpwouvv.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_i7qcIcbkjSjZkqjVSt-jUA_ZR7RQlTA";
-const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
+  const SUPABASE_CONFIG = {
+    url: "https://lnluwygaehlqsdpwouvv.supabase.co",
+    anonKey: "sb_publishable_i7qcIcbkjSjZkqjVSt-jUA_ZR7RQlTA",
+    tableName: "pagos"
+  };
+
   const CLAVE_PAGOS_REP = "pagos_representantes_v1";
   const CLAVES_PAGOS_POSIBLES = [
     "pagos_representantes_v1",
@@ -16,6 +19,7 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
   ];
   const CLAVE_ESTADOS_MESES_ALU = "estados_meses_alumnos_v1";
   const CLAVE_REGISTROS_ALU = "registros_alumnos_v1";
+  const CLAVE_CACHE_PAGOS_SB = "cache_pagos_admin_supabase";
 
   const MESES_ESCOLARES = [
     { key: "SEPTIEMBRE", label: "Septiembre 2026", year: 2026, month: 9 },
@@ -96,6 +100,15 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
     );
   }
 
+  function escaparHtml(valor) {
+    return String(valor ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function sanitizarRegistroAlumno(raw) {
     const copia = Object.assign({}, raw);
     copia.seccion = String(copia.seccion || "").trim().toUpperCase();
@@ -138,9 +151,56 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
   let historialPagos = [];
   let ultimaFirmaStorage = "";
 
+  function obtenerHeadersSupabase() {
+    return {
+      "apikey": SUPABASE_CONFIG.anonKey,
+      "Authorization": `Bearer ${SUPABASE_CONFIG.anonKey}`,
+      "Content-Type": "application/json",
+      "Prefer": "return=representation"
+    };
+  }
+
+  function guardarCacheSupabase(lista) {
+    try {
+      localStorage.setItem(CLAVE_CACHE_PAGOS_SB, JSON.stringify(lista));
+    } catch {
+      // Ignorar error de cuota
+    }
+  }
+
+  function leerCacheSupabase() {
+    try {
+      const raw = localStorage.getItem(CLAVE_CACHE_PAGOS_SB);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function mapearEstadoDesdePortal(estadoTexto) {
+    const e = normalizarTexto(estadoTexto);
+    if (e.includes("APROB") || e === "PAGO" || e === "PAGADO") return "aprobado";
+    if (e.includes("RECHAZ")) return "rechazado";
+    return "revision";
+  }
+
+  function mapearEstadoHaciaPortal(estadoAdmin) {
+    if (estadoAdmin === "aprobado") return "Aprobado";
+    if (estadoAdmin === "rechazado") return "Rechazado";
+    return "En revisión";
+  }
+
+  function extraerMesesDeConcepto(concepto) {
+    const texto = normalizarTexto(concepto);
+    return MESES_ESCOLARES
+      .filter((m) => texto.includes(m.key))
+      .map((m) => m.label);
+  }
+
   function encontrarAlumnoPorPago(pago) {
-    const digAlu = soloDigitosCedula(pago?.alumnoCedula || pago?.ced);
-    const digRep = soloDigitosCedula(pago?.representanteCedula || pago?.ced_rep);
+    const digAlu = soloDigitosCedula(pago?.alumnoCedula || pago?.ced || pago?.cedula_alumno);
+    const digRep = soloDigitosCedula(pago?.representanteCedula || pago?.ced_rep || pago?.cedula_representante);
     const nomPago = normalizarTexto(pago?.alumno);
     const repPago = normalizarTexto(pago?.representante);
     const secPago = normalizarTexto(pago?.seccion);
@@ -172,6 +232,144 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
     }
 
     return null;
+  }
+
+  function normalizarPagoCrudo(item, index = 0) {
+    const fechaBase = item.fechaLegible
+      ? String(item.fechaLegible).split(",")[0]
+      : (item.fechaRegistro
+        ? String(item.fechaRegistro).slice(0, 10)
+        : (item.fecha
+          ? String(item.fecha).slice(0, 10)
+          : (item.created_at ? String(item.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10))));
+
+    const montoCandidato =
+      item.pago?.montoUsd ??
+      item.pago?.monto ??
+      item.monto_usd ??
+      item.montoUsd ??
+      item.monto ??
+      item.monto_bs ??
+      0;
+
+    const montoNum = Number(String(montoCandidato ?? "").replace(/[^0-9.,-]/g, "").replace(",", "."));
+    const montoTexto = Number.isFinite(montoNum) && montoNum > 0
+      ? `$${montoNum.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : (typeof montoCandidato === "string" && montoCandidato.trim() ? montoCandidato.trim() : "$0,00");
+
+    const estadoAdmin = mapearEstadoDesdePortal(item.estado || item.pago?.estado);
+    const conceptoTexto = item.pago?.concepto || item.concepto || item.meses || item.mes || item.descripcion || "Mensualidad";
+    const mesesPagados = Array.isArray(item.mesesPagados) && item.mesesPagados.length > 0
+      ? item.mesesPagados
+      : extraerMesesDeConcepto(conceptoTexto);
+
+    const alumnoNombreRaw = typeof item.alumno === "string"
+      ? item.alumno
+      : (item.alumno?.nombreApellido || item.nombre_alumno || item.nombreAlumno || item.estudiante || "");
+    const alumnoCedulaRaw = typeof item.alumno === "object"
+      ? (item.alumno?.cedula || item.alumno?.ced || "")
+      : (item.cedula_alumno || item.alumnoCedula || item.cedulaAlumno || item.ced || "");
+    const seccionRaw = typeof item.alumno === "object"
+      ? (item.alumno?.gradoSeccion || item.alumno?.seccion || "")
+      : (item.seccion || item.gradoSeccion || item.grado || "");
+    const repNombreRaw = typeof item.representante === "string"
+      ? item.representante
+      : (item.representante?.nombreApellido || item.nombre_representante || item.nombreRepresentante || "");
+    const repCedulaRaw = typeof item.representante === "object"
+      ? (item.representante?.cedula || item.representante?.ced_rep || "")
+      : (item.cedula_representante || item.representanteCedula || item.cedulaRepresentante || item.ced_rep || "");
+
+    const pagoNormalizado = {
+      id: item.id ?? item.uuid ?? `PAG-${index + 1}`,
+      fecha: fechaBase,
+      referencia: item.referencia || item.pago?.nroReferencia || item.pago?.referencia || item.nroReferencia || item.comprobante || "",
+      seccion: seccionRaw,
+      alumno: alumnoNombreRaw,
+      alumnoCedula: formatearCedula(alumnoCedulaRaw),
+      representante: repNombreRaw,
+      representanteCedula: formatearCedula(repCedulaRaw),
+      concepto: conceptoTexto,
+      mesesPagados,
+      metodo: item.metodo || item.pago?.metodo || item.metodo_pago || item.metodoPago || "Transferencia / Pago Móvil",
+      motivo: item.motivo || item.observacion || "",
+      monto: montoTexto,
+      estado: estadoAdmin
+    };
+
+    const aluMatch = encontrarAlumnoPorPago(pagoNormalizado);
+    if (aluMatch) {
+      if (!pagoNormalizado.alumno) pagoNormalizado.alumno = aluMatch.alumno;
+      if (!pagoNormalizado.alumnoCedula) pagoNormalizado.alumnoCedula = aluMatch.ced;
+      if (!pagoNormalizado.seccion) pagoNormalizado.seccion = aluMatch.seccion;
+      if (!pagoNormalizado.representante) pagoNormalizado.representante = aluMatch.representante;
+      if (!pagoNormalizado.representanteCedula) pagoNormalizado.representanteCedula = aluMatch.ced_rep;
+    }
+
+    return pagoNormalizado;
+  }
+
+  async function cargarPagosAdminSupabase(filtros = {}) {
+    try {
+      if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) {
+        throw new Error("Falta configurar SUPABASE_CONFIG.url o SUPABASE_CONFIG.anonKey");
+      }
+      const params = new URLSearchParams();
+      params.set("select", "*");
+      params.set("order", "created_at.desc");
+
+      if (filtros.estado && filtros.estado.toLowerCase() !== "todos") {
+        params.set("estado", `eq.${filtros.estado.toLowerCase().trim()}`);
+      }
+
+      const endpoint = `${SUPABASE_CONFIG.url.replace(/\/+$/, "")}/rest/v1/${SUPABASE_CONFIG.tableName}?${params.toString()}`;
+      const respuesta = await fetch(endpoint, {
+        method: "GET",
+        headers: obtenerHeadersSupabase()
+      });
+
+      if (!respuesta.ok) {
+        const detalle = await respuesta.text();
+        throw new Error(`HTTP ${respuesta.status}: ${detalle}`);
+      }
+
+      const datos = await respuesta.json();
+      const lista = Array.isArray(datos) ? datos : [];
+      guardarCacheSupabase(lista);
+      return lista;
+    } catch (error) {
+      console.warn("[cargarPagosAdminSupabase] Usando caché local si existe:", error.message);
+      return leerCacheSupabase();
+    }
+  }
+
+  async function actualizarEstadoPagoSupabase(pagoId, nuevoEstado, observacion = "") {
+    if (!pagoId) return null;
+    const estadoPortal = mapearEstadoHaciaPortal(nuevoEstado);
+    const params = new URLSearchParams();
+    params.set("id", `eq.${encodeURIComponent(String(pagoId))}`);
+
+    const endpoint = `${SUPABASE_CONFIG.url.replace(/\/+$/, "")}/rest/v1/${SUPABASE_CONFIG.tableName}?${params.toString()}`;
+    const cuerpo = {
+      estado: estadoPortal,
+      updated_at: new Date().toISOString()
+    };
+    if (observacion) {
+      cuerpo.motivo = observacion;
+      cuerpo.observacion = observacion;
+    }
+
+    const respuesta = await fetch(endpoint, {
+      method: "PATCH",
+      headers: obtenerHeadersSupabase(),
+      body: JSON.stringify(cuerpo)
+    });
+
+    if (!respuesta.ok) {
+      const detalle = await respuesta.text();
+      throw new Error(`Error PATCH Supabase (${respuesta.status}): ${detalle}`);
+    }
+
+    return respuesta.json();
   }
 
   function coincideBusquedaConCedula(consultaRaw, candidatosTexto, candidatosCedula) {
@@ -214,31 +412,6 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
     return textoRegistro.includes(normalizarTexto(consulta));
   }
 
-  function actualizarContadorAlumnos() {
-    const el = document.getElementById("countAlumnos");
-    if (el) el.textContent = String(registros.length);
-  }
-
-  function mapearEstadoDesdePortal(estadoTexto) {
-    const e = normalizarTexto(estadoTexto);
-    if (e.includes("APROB") || e === "PAGO" || e === "PAGADO") return "aprobado";
-    if (e.includes("RECHAZ")) return "rechazado";
-    return "revision";
-  }
-
-  function mapearEstadoHaciaPortal(estadoAdmin) {
-    if (estadoAdmin === "aprobado") return "Aprobado";
-    if (estadoAdmin === "rechazado") return "Rechazado";
-    return "En revisión";
-  }
-
-  function extraerMesesDeConcepto(concepto) {
-    const texto = normalizarTexto(concepto);
-    return MESES_ESCOLARES
-      .filter((m) => texto.includes(m.key))
-      .map((m) => m.label);
-  }
-
   function leerArrayStorage(clave) {
     try {
       const raw = JSON.parse(localStorage.getItem(clave) || "null");
@@ -262,9 +435,9 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
       const arr = leerArrayStorage(clave);
       arr.forEach((item, idx) => {
         if (!item || typeof item !== "object") return;
-        const ref = item.pago?.nroReferencia || item.nroReferencia || item.referencia || "";
+        const ref = item.referencia || item.pago?.nroReferencia || item.pago?.referencia || item.nroReferencia || "";
         const alu = item.alumno?.nombreApellido || item.alumno || item.nombreAlumno || "";
-        const concepto = item.pago?.concepto || item.concepto || "";
+        const concepto = item.pago?.concepto || item.concepto || item.meses || "";
         const claveUnica = item.id
           ? `ID:${item.id}`
           : `F:${ref}|A:${normalizarTexto(alu)}|C:${normalizarTexto(concepto)}|I:${idx}`;
@@ -276,10 +449,6 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
     });
 
     return combinados;
-  }
-
-  function guardarPagosRepresentanteStorage(lista) {
-    localStorage.setItem(CLAVE_PAGOS_REP, JSON.stringify(lista));
   }
 
   function actualizarEstadoMesesEnPortalStorage(pago, nuevoEstadoMes) {
@@ -321,102 +490,113 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
     if (modificoRegistros) guardarRegistrosStorage(registros);
   }
 
-  function sincronizarPagosDesdePortal() {
-    const rawPagos = leerPagosRepresentanteStorage();
+  function aplicarAprobacionesAlPadron() {
     let modificoRegistros = false;
-
-    historialPagos = rawPagos.map((item, index) => {
-      const fechaBase = item.fechaLegible
-        ? String(item.fechaLegible).split(",")[0]
-        : (item.fechaRegistro
-          ? String(item.fechaRegistro).slice(0, 10)
-          : (item.fecha || new Date().toISOString().slice(0, 10)));
-
-      const montoCandidato = item.pago?.montoUsd ?? item.pago?.monto ?? item.montoUsd ?? item.monto;
-      const montoNum = Number(String(montoCandidato ?? "").replace(/[^0-9.,-]/g, "").replace(",", "."));
-      const montoTexto = Number.isFinite(montoNum) && montoNum > 0
-        ? `$${montoNum.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        : (typeof montoCandidato === "string" && montoCandidato.trim() ? montoCandidato.trim() : "$0,00");
-
-      const estadoAdmin = mapearEstadoDesdePortal(item.estado || item.pago?.estado);
-      const conceptoTexto = item.pago?.concepto || item.concepto || item.mes || "Mensualidad";
-      const mesesPagados = Array.isArray(item.mesesPagados) && item.mesesPagados.length > 0
-        ? item.mesesPagados
-        : extraerMesesDeConcepto(conceptoTexto);
-
-      const alumnoNombreRaw = typeof item.alumno === "string"
-        ? item.alumno
-        : (item.alumno?.nombreApellido || item.nombreAlumno || "");
-      const alumnoCedulaRaw = typeof item.alumno === "object"
-        ? (item.alumno?.cedula || item.alumno?.ced || "")
-        : (item.alumnoCedula || item.cedulaAlumno || item.ced || "");
-      const seccionRaw = typeof item.alumno === "object"
-        ? (item.alumno?.gradoSeccion || item.alumno?.seccion || "")
-        : (item.seccion || item.gradoSeccion || "");
-      const repNombreRaw = typeof item.representante === "string"
-        ? item.representante
-        : (item.representante?.nombreApellido || item.nombreRepresentante || "");
-      const repCedulaRaw = typeof item.representante === "object"
-        ? (item.representante?.cedula || item.representante?.ced_rep || "")
-        : (item.representanteCedula || item.cedulaRepresentante || item.ced_rep || "");
-
-      const pagoNormalizado = {
-        id: item.id || `REP-${index + 1}`,
-        fecha: fechaBase,
-        referencia: item.pago?.nroReferencia || item.pago?.referencia || item.nroReferencia || item.referencia || "",
-        seccion: seccionRaw,
-        alumno: alumnoNombreRaw,
-        alumnoCedula: formatearCedula(alumnoCedulaRaw),
-        representante: repNombreRaw,
-        representanteCedula: formatearCedula(repCedulaRaw),
-        concepto: conceptoTexto,
-        mesesPagados,
-        metodo: item.pago?.metodo || item.metodo || "Transferencia / Pago Móvil",
-        motivo: item.motivo || "",
-        monto: montoTexto,
-        estado: estadoAdmin
-      };
-
-      const aluMatch = encontrarAlumnoPorPago(pagoNormalizado);
-      if (aluMatch) {
-        if (!pagoNormalizado.alumno) pagoNormalizado.alumno = aluMatch.alumno;
-        if (!pagoNormalizado.alumnoCedula) pagoNormalizado.alumnoCedula = aluMatch.ced;
-        if (!pagoNormalizado.seccion) pagoNormalizado.seccion = aluMatch.seccion;
-        if (!pagoNormalizado.representante) pagoNormalizado.representante = aluMatch.representante;
-        if (!pagoNormalizado.representanteCedula) pagoNormalizado.representanteCedula = aluMatch.ced_rep;
-      }
-
-      if (estadoAdmin === "aprobado") {
-        mesesPagados.forEach((mesLabel) => {
+    historialPagos.forEach((pago) => {
+      if (pago.estado === "aprobado") {
+        const aluMatch = encontrarAlumnoPorPago(pago);
+        if (!aluMatch) return;
+        const meses = Array.isArray(pago.mesesPagados) && pago.mesesPagados.length > 0
+          ? pago.mesesPagados
+          : extraerMesesDeConcepto(pago.concepto);
+        meses.forEach((mesLabel) => {
           const mesMatch = MESES_ESCOLARES.find(
             (m) => normalizarTexto(m.label) === normalizarTexto(mesLabel) || normalizarTexto(mesLabel).includes(m.key)
           );
-          if (mesMatch && aluMatch && aluMatch[mesMatch.key] !== "PAGO") {
+          if (mesMatch && aluMatch[mesMatch.key] !== "PAGO") {
             aluMatch[mesMatch.key] = "PAGO";
             modificoRegistros = true;
           }
         });
       }
-
-      return pagoNormalizado;
     });
-
     if (modificoRegistros) guardarRegistrosStorage(registros);
   }
 
-  function obtenerFirmaStorage() {
-    try {
-      return CLAVES_PAGOS_POSIBLES
-        .map((k) => `${k}:${localStorage.getItem(k) || ""}`)
-        .join("||") + "##" + (localStorage.getItem(CLAVE_REGISTROS_ALU) || "");
-    } catch {
-      return "";
+  function construirHistorialPagos(datosSupabase) {
+    const rawSupabase = Array.isArray(datosSupabase) ? datosSupabase : leerCacheSupabase();
+    const rawLocal = leerPagosRepresentanteStorage();
+    const combinados = [...rawSupabase, ...rawLocal];
+    const vistos = new Set();
+    const filtrados = [];
+
+    combinados.forEach((item, idx) => {
+      if (!item || typeof item !== "object") return;
+      const ref = item.referencia || item.pago?.nroReferencia || item.pago?.referencia || item.nroReferencia || "";
+      const alu = item.alumno?.nombreApellido || item.alumno || item.nombre_alumno || item.nombreAlumno || "";
+      const concepto = item.pago?.concepto || item.concepto || item.meses || "";
+      const clave = item.id !== undefined && item.id !== null && item.id !== ""
+        ? `ID:${item.id}`
+        : `F:${ref}|A:${normalizarTexto(alu)}|C:${normalizarTexto(concepto)}|I:${idx}`;
+      if (!vistos.has(clave)) {
+        vistos.add(clave);
+        filtrados.push(item);
+      }
+    });
+
+    historialPagos = filtrados.map((item, index) => normalizarPagoCrudo(item, index));
+    aplicarAprobacionesAlPadron();
+  }
+
+  async function cambiarEstadoPago(pagoId, nuevoEstado) {
+    const pago = historialPagos.find((p) => String(p.id) === String(pagoId));
+    if (!pago) return;
+
+    let motivoTexto = "";
+    if (nuevoEstado === "rechazado") {
+      motivoTexto = prompt("Indique el motivo del rechazo:", "Referencia no encontrada / monto incompleto") || "Rechazado por administración";
+      pago.motivo = motivoTexto;
     }
+
+    pago.estado = nuevoEstado;
+    const estadoPortal = mapearEstadoHaciaPortal(nuevoEstado);
+
+    try {
+      CLAVES_PAGOS_POSIBLES.forEach((clave) => {
+        const arr = leerArrayStorage(clave);
+        let cambio = false;
+        const actualizado = arr.map((item) => {
+          if (String(item.id) === String(pagoId)) {
+            cambio = true;
+            const copia = Object.assign({}, item, { estado: estadoPortal });
+            if (motivoTexto) copia.motivo = motivoTexto;
+            if (copia.pago && typeof copia.pago === "object") {
+              copia.pago = Object.assign({}, copia.pago, { estado: estadoPortal });
+            }
+            return copia;
+          }
+          return item;
+        });
+        if (cambio) {
+          localStorage.setItem(clave, JSON.stringify(actualizado));
+        }
+      });
+    } catch {
+      // Ignorar error local
+    }
+
+    if (nuevoEstado === "aprobado") {
+      actualizarEstadoMesesEnPortalStorage(pago, "aprobado");
+    } else if (nuevoEstado === "rechazado") {
+      actualizarEstadoMesesEnPortalStorage(pago, "rechazado");
+    }
+
+    try {
+      await actualizarEstadoPagoSupabase(pagoId, nuevoEstado, motivoTexto);
+    } catch (err) {
+      console.warn("[cambiarEstadoPago] No se pudo sincronizar PATCH en Supabase:", err.message);
+    }
+
+    renderTodo();
   }
 
   function abrirVista(vista) {
-    document.querySelectorAll(".kpi-card").forEach((c) => c.classList.toggle("active", c.dataset.vista === vista));
-    document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === "vista-" + vista));
+    document.querySelectorAll(".kpi-card").forEach((c) => {
+      c.classList.toggle("active", c.dataset.vista === vista);
+    });
+    document.querySelectorAll(".panel").forEach((p) => {
+      p.classList.toggle("active", p.id === "vista-" + vista);
+    });
   }
 
   function getFechaCorte() {
@@ -474,6 +654,26 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
       });
   }
 
+  function actualizarContadores() {
+    const fechaCorte = getFechaCorte();
+    const enRevision = historialPagos.filter((p) => p.estado === "revision").length;
+    const aprobados = historialPagos.filter((p) => p.estado === "aprobado").length;
+    const rechazados = historialPagos.filter((p) => p.estado === "rechazado").length;
+    const morosos = registros.filter((r) => calcularMorosidad(r, fechaCorte).cantidadVencida > 0).length;
+
+    const elRev = document.getElementById("countRevision");
+    const elApr = document.getElementById("countAprobados");
+    const elRec = document.getElementById("countRechazados");
+    const elMor = document.getElementById("countMorosos");
+    const elAlu = document.getElementById("countAlumnos");
+
+    if (elRev) elRev.textContent = String(enRevision);
+    if (elApr) elApr.textContent = String(aprobados);
+    if (elRec) elRec.textContent = String(rechazados);
+    if (elMor) elMor.textContent = String(morosos);
+    if (elAlu) elAlu.textContent = String(registros.length);
+  }
+
   function renderTablaPagos(tipo, tbodyId, inputBuscarId) {
     const tbody = document.getElementById(tbodyId);
     if (!tbody) return;
@@ -509,29 +709,52 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
       );
     });
 
+    if (!lista.length) {
+      tbody.innerHTML = `<tr><td colspan="10">No hay registros en esta sección.</td></tr>`;
+      return;
+    }
+
     if (tipo === "rechazado") {
       tbody.innerHTML = lista.map((p) => `
         <tr>
-          <td>${p.fecha}</td><td>${p.referencia}</td><td>${p.seccion}</td><td>${p.alumno}</td>
-          <td>${p.representante}</td><td>${p.concepto}</td><td>${p.motivo}</td><td>${p.monto}</td>
+          <td>${escaparHtml(p.fecha)}</td>
+          <td>${escaparHtml(p.referencia)}</td>
+          <td>${escaparHtml(p.seccion)}</td>
+          <td>${escaparHtml(p.alumno)}</td>
+          <td>${escaparHtml(p.representante)}</td>
+          <td>${escaparHtml(p.concepto)}</td>
+          <td>${escaparHtml(p.motivo)}</td>
+          <td>${escaparHtml(p.monto)}</td>
           <td><span class="tag tag-rechazado">Rechazado</span></td>
         </tr>`).join("");
     } else if (tipo === "revision") {
       tbody.innerHTML = lista.map((p) => `
         <tr>
-          <td>${p.fecha}</td><td>${p.referencia}</td><td>${p.seccion}</td><td>${p.alumno}</td>
-          <td>${p.representante}</td><td>${p.concepto}</td><td>${p.metodo}</td><td>${p.monto}</td>
+          <td>${escaparHtml(p.fecha)}</td>
+          <td>${escaparHtml(p.referencia)}</td>
+          <td>${escaparHtml(p.seccion)}</td>
+          <td>${escaparHtml(p.alumno)}</td>
+          <td>${escaparHtml(p.representante)}</td>
+          <td>${escaparHtml(p.concepto)}</td>
+          <td>${escaparHtml(p.metodo)}</td>
+          <td>${escaparHtml(p.monto)}</td>
           <td><span class="tag tag-revision">En Revisión</span></td>
           <td class="no-print">
-            <button type="button" class="btn-aprobar" onclick="cambiarEstadoPago('${String(p.id).replace(/'/g, "\\'")}', 'aprobado')">Aprobar</button>
-            <button type="button" class="btn-rechazar" onclick="cambiarEstadoPago('${String(p.id).replace(/'/g, "\\'")}', 'rechazado')">Rechazar</button>
+            <button type="button" class="btn-aprobar" onclick="cambiarEstadoPago('${escaparHtml(String(p.id).replace(/'/g, "\\'"))}', 'aprobado')">Aprobar</button>
+            <button type="button" class="btn-rechazar" onclick="cambiarEstadoPago('${escaparHtml(String(p.id).replace(/'/g, "\\'"))}', 'rechazado')">Rechazar</button>
           </td>
         </tr>`).join("");
     } else {
       tbody.innerHTML = lista.map((p) => `
         <tr>
-          <td>${p.fecha}</td><td>${p.referencia}</td><td>${p.seccion}</td><td>${p.alumno}</td>
-          <td>${p.representante}</td><td>${p.concepto}</td><td>${p.metodo}</td><td>${p.monto}</td>
+          <td>${escaparHtml(p.fecha)}</td>
+          <td>${escaparHtml(p.referencia)}</td>
+          <td>${escaparHtml(p.seccion)}</td>
+          <td>${escaparHtml(p.alumno)}</td>
+          <td>${escaparHtml(p.representante)}</td>
+          <td>${escaparHtml(p.concepto)}</td>
+          <td>${escaparHtml(p.metodo)}</td>
+          <td>${escaparHtml(p.monto)}</td>
           <td><span class="tag tag-aprobado">Aprobado</span></td>
         </tr>`).join("");
     }
@@ -549,7 +772,7 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
 
     const totalInsolventes = registros.filter((r) => calcularMorosidad(r, fechaCorte).cantidadVencida > 0).length;
     const countMorosos = document.getElementById("countMorosos");
-    if (countMorosos) countMorosos.textContent = totalInsolventes;
+    if (countMorosos) countMorosos.textContent = String(totalInsolventes);
 
     const lista = obtenerCarteraFiltrada();
     const resumen = document.getElementById("resumenMorosos");
@@ -559,115 +782,66 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
 
     const tbody = document.getElementById("tbodyMorosos");
     if (!tbody) return;
+
+    if (!lista.length) {
+      tbody.innerHTML = `<tr><td colspan="7">No hay alumnos insolventes para la fecha de corte o filtro actual.</td></tr>`;
+      return;
+    }
+
     tbody.innerHTML = lista.map((m) => `
       <tr>
-        <td>${m.seccion}</td>
-        <td>${m.ced}</td>
-        <td>${m.alumno}</td>
-        <td>${m.representante}</td>
-        <td>${m.telefonos}</td>
-        <td><span class="tag tag-moroso">${m.condicion}</span></td>
-        <td>${m.mesesQueDebeTexto}</td>
+        <td>${escaparHtml(m.seccion)}</td>
+        <td>${escaparHtml(m.ced)}</td>
+        <td>${escaparHtml(m.alumno)}</td>
+        <td>${escaparHtml(m.representante)}</td>
+        <td>${escaparHtml(m.telefonos)}</td>
+        <td><span class="tag tag-moroso">${escaparHtml(m.condicion)}</span></td>
+        <td>${escaparHtml(m.mesesQueDebeTexto)}</td>
       </tr>`).join("");
   }
 
   function renderAlumnos() {
     const thead = document.getElementById("theadAlumnos");
     const tbody = document.getElementById("tbodyAlumnos");
-    actualizarContadorAlumnos();
-    if (!thead || !tbody) return;
+    if (!tbody) return;
 
-    const buscarEl = document.getElementById("buscarAlumno");
-    const texto = buscarEl ? buscarEl.value.trim() : "";
+    const input = document.getElementById("buscarAlumno");
+    const consulta = input ? input.value.trim() : "";
+    const filtrados = registros.filter((r) => coincideRegistroEnPadron(consulta, r));
 
-    const colsBase = ["seccion", "ced", "alumno", "sexo", "f_nac", "ced_rep", "representante", "telefonos"];
+    const colsBase = ["seccion", "ced", "alumno", "representante", "ced_rep", "telefonos"];
     const colsMeses = ["INSC", ...MESES_ESCOLARES.map((m) => m.key)];
     const todasCols = [...colsBase, ...colsMeses];
 
-    thead.innerHTML = todasCols.map((c) => `<th>${c}</th>`).join("");
+    if (thead) {
+      thead.innerHTML = todasCols.map((c) => `<th>${escaparHtml(c)}</th>`).join("");
+    }
 
-    const filtrados = registros.filter((r) => {
-      if (!texto) return true;
-      return coincideRegistroEnPadron(texto, r);
-    });
+    if (!filtrados.length) {
+      tbody.innerHTML = `<tr><td colspan="${todasCols.length}">No se encontraron alumnos con ese criterio.</td></tr>`;
+      return;
+    }
 
     tbody.innerHTML = filtrados.map((r) => {
       const celdas = todasCols.map((col) => {
         const val = r[col] ?? "";
         if (colsMeses.includes(col)) {
           const esPago = String(val).trim().toUpperCase() === "PAGO";
-          return `<td><span class="tag ${esPago ? "tag-aprobado" : "tag-revision"}">${val || "PENDIENTE"}</span></td>`;
+          return `<td><span class="tag ${esPago ? "tag-aprobado" : "tag-revision"}">${escaparHtml(val || "PENDIENTE")}</span></td>`;
         }
-        return `<td>${val}</td>`;
+        return `<td>${escaparHtml(val)}</td>`;
       }).join("");
       return `<tr>${celdas}</tr>`;
     }).join("");
   }
 
-  function actualizarKPIs() {
-    sincronizarPagosDesdePortal();
-    actualizarContadorAlumnos();
-    const countAprobados = document.getElementById("countAprobados");
-    const countRevision = document.getElementById("countRevision");
-    const countRechazados = document.getElementById("countRechazados");
-    if (countAprobados) countAprobados.textContent = historialPagos.filter((p) => p.estado === "aprobado").length;
-    if (countRevision) countRevision.textContent = historialPagos.filter((p) => p.estado === "revision").length;
-    if (countRechazados) countRechazados.textContent = historialPagos.filter((p) => p.estado === "rechazado").length;
-  }
-
   function renderTodo() {
-    ultimaFirmaStorage = obtenerFirmaStorage();
-    actualizarKPIs();
+    actualizarContadores();
     renderTablaPagos("revision", "tbodyRevision", "buscarRevision");
     renderTablaPagos("aprobado", "tbodyAprobados", "buscarAprobados");
     renderTablaPagos("rechazado", "tbodyRechazados", "buscarRechazados");
     renderMorosos();
     renderAlumnos();
-  }
-
-  function cambiarEstadoPago(id, nuevoEstado) {
-    const pagoAdmin = historialPagos.find((x) => String(x.id) === String(id));
-    if (!pagoAdmin) return;
-
-    let motivoTexto = "";
-    if (nuevoEstado === "rechazado") {
-      motivoTexto = prompt("Indique el motivo del rechazo:", "Referencia no encontrada / monto incompleto") || "Rechazado por administración";
-    }
-
-    let actualizado = false;
-    CLAVES_PAGOS_POSIBLES.forEach((clave) => {
-      const arr = leerArrayStorage(clave);
-      if (!arr.length) return;
-      const idx = arr.findIndex((item, i) => {
-        const itemId = item.id || `REP-${i + 1}`;
-        if (String(itemId) === String(id)) return true;
-        const refItem = item.pago?.nroReferencia || item.nroReferencia || item.referencia || "";
-        return pagoAdmin.referencia && String(refItem) === String(pagoAdmin.referencia);
-      });
-      if (idx !== -1) {
-        arr[idx].estado = mapearEstadoHaciaPortal(nuevoEstado);
-        if (nuevoEstado === "rechazado") {
-          arr[idx].motivo = motivoTexto;
-        } else {
-          delete arr[idx].motivo;
-        }
-        localStorage.setItem(clave, JSON.stringify(arr));
-        actualizado = true;
-      }
-    });
-
-    if (!actualizado) {
-      const respaldo = leerPagosRepresentanteStorage();
-      guardarPagosRepresentanteStorage(respaldo);
-    }
-
-    if (nuevoEstado === "aprobado") {
-      actualizarEstadoMesesEnPortalStorage(pagoAdmin, "aprobado");
-    } else if (nuevoEstado === "rechazado") {
-      actualizarEstadoMesesEnPortalStorage(pagoAdmin, "rechazado");
-    }
-
-    renderTodo();
   }
 
   function descargarCSV(nombreArchivo, filas) {
@@ -715,17 +889,6 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
       filas.push([p.fecha, p.referencia, p.seccion, p.alumno, p.representante, p.concepto, p.metodo, p.monto, p.estado, p.motivo || ""]);
     });
     descargarCSV(`pagos_${tipo}.csv`, filas);
-  }
-
-  function exportarAlumnosCSV() {
-    const colsBase = ["seccion", "ced", "alumno", "sexo", "f_nac", "ced_rep", "representante", "telefonos"];
-    const colsMeses = ["INSC", ...MESES_ESCOLARES.map((m) => m.key)];
-    const todasCols = [...colsBase, ...colsMeses];
-    const filas = [todasCols];
-    registros.forEach((r) => {
-      filas.push(todasCols.map((c) => r[c] ?? ""));
-    });
-    descargarCSV("listado_alumnos_2026_2027.csv", filas);
   }
 
   function imprimirVista(tituloReporte) {
@@ -852,58 +1015,29 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
     procesarTextoCsv(textarea.value);
   }
 
-  window.abrirVista = abrirVista;
-  window.cambiarEstadoPago = cambiarEstadoPago;
-  window.descargarCarteraCSV = descargarCarteraCSV;
-  window.exportarPagos = exportarPagos;
-  window.imprimirVista = imprimirVista;
-  window.abrirSelectorCsv = abrirSelectorCsv;
-  window.toggleCajaPegar = toggleCajaPegar;
-  window.importarTextoPegado = importarTextoPegado;
+  function obtenerFirmaStorage() {
+    try {
+      return CLAVES_PAGOS_POSIBLES
+        .map((k) => `${k}:${localStorage.getItem(k) || ""}`)
+        .join("||") + "##" + (localStorage.getItem(CLAVE_REGISTROS_ALU) || "") + "##" + (localStorage.getItem(CLAVE_CACHE_PAGOS_SB) || "");
+    } catch {
+      return "";
+    }
+  }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll(".kpi-trigger").forEach((btn) => {
-      btn.addEventListener("click", () => abrirVista(btn.dataset.vista));
+  function enlazarEventosUI() {
+    document.querySelectorAll(".kpi-card[data-vista], .kpi-trigger[data-vista]").forEach((card) => {
+      card.addEventListener("click", () => abrirVista(card.dataset.vista));
     });
 
-    const configBusquedas = [
-      { inputId: "buscarRevision", btnId: "btnBuscarRevision", fn: () => renderTablaPagos("revision", "tbodyRevision", "buscarRevision") },
-      { inputId: "buscarAprobados", btnId: "btnBuscarAprobados", fn: () => renderTablaPagos("aprobado", "tbodyAprobados", "buscarAprobados") },
-      { inputId: "buscarRechazados", btnId: "btnBuscarRechazados", fn: () => renderTablaPagos("rechazado", "tbodyRechazados", "buscarRechazados") },
-      { inputId: "buscarMoroso", btnId: "btnBuscarMoroso", fn: renderMorosos },
-      { inputId: "buscarAlumno", btnId: "btnBuscarAlumno", fn: renderAlumnos }
-    ];
-
-    configBusquedas.forEach(({ inputId, btnId, fn }) => {
-      const inputEl = document.getElementById(inputId);
-      const btnEl = document.getElementById(btnId);
-
-      if (inputEl) {
-        inputEl.addEventListener("input", fn);
-        inputEl.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            fn();
-          }
-        });
-      }
-
-      if (btnEl) {
-        btnEl.addEventListener("click", () => {
-          fn();
-          if (inputEl) inputEl.focus();
-        });
+    const idsCambio = ["fechaCorte", "buscarMoroso", "filtroMesesVencidos", "buscarRevision", "buscarAprobados", "buscarRechazados", "buscarAlumno"];
+    idsCambio.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("input", renderTodo);
+        el.addEventListener("change", renderTodo);
       }
     });
-
-    const filtroMeses = document.getElementById("filtroMesesVencidos");
-    if (filtroMeses) filtroMeses.addEventListener("change", renderMorosos);
-
-    const fechaCorte = document.getElementById("fechaCorte");
-    if (fechaCorte) fechaCorte.addEventListener("change", renderMorosos);
-
-    const btnDescargarAlumnos = document.getElementById("btnDescargarAlumnos");
-    if (btnDescargarAlumnos) btnDescargarAlumnos.addEventListener("click", exportarAlumnosCSV);
 
     const inputCsv = document.getElementById("inputCsv");
     if (inputCsv) {
@@ -922,7 +1056,9 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
     function comprobarCambiosTiempoReal() {
       const firmaActual = obtenerFirmaStorage();
       if (firmaActual !== ultimaFirmaStorage) {
+        ultimaFirmaStorage = firmaActual;
         registros = cargarRegistrosIniciales();
+        construirHistorialPagos(leerCacheSupabase());
         renderTodo();
       }
     }
@@ -932,8 +1068,38 @@ const SUPABASE_PAGOS_ENDPOINT = `${SUPABASE_URL}/rest/v1/pagos`;
     document.addEventListener("visibilitychange", function () {
       if (!document.hidden) comprobarCambiosTiempoReal();
     });
-    setInterval(comprobarCambiosTiempoReal, 1500);
+    setInterval(comprobarCambiosTiempoReal, 2000);
+  }
 
+  async function iniciarPanelAdministrativo() {
+    enlazarEventosUI();
+    construirHistorialPagos(leerCacheSupabase());
     renderTodo();
-  });
+
+    const datosSb = await cargarPagosAdminSupabase({ estado: "todos" });
+    construirHistorialPagos(datosSb);
+    ultimaFirmaStorage = obtenerFirmaStorage();
+    renderTodo();
+  }
+
+  window.SUPABASE_CONFIG = SUPABASE_CONFIG;
+  window.cargarPagosAdminSupabase = cargarPagosAdminSupabase;
+  window.actualizarEstadoPagoSupabase = actualizarEstadoPagoSupabase;
+  window.cambiarEstadoPago = cambiarEstadoPago;
+  window.abrirVista = abrirVista;
+  window.renderMorosos = renderMorosos;
+  window.renderAlumnos = renderAlumnos;
+  window.renderTodo = renderTodo;
+  window.descargarCarteraCSV = descargarCarteraCSV;
+  window.exportarPagos = exportarPagos;
+  window.imprimirVista = imprimirVista;
+  window.abrirSelectorCsv = abrirSelectorCsv;
+  window.toggleCajaPegar = toggleCajaPegar;
+  window.importarTextoPegado = importarTextoPegado;
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", iniciarPanelAdministrativo);
+  } else {
+    iniciarPanelAdministrativo();
+  }
 })();

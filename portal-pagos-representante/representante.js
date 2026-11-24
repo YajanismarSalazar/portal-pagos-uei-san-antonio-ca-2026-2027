@@ -34,9 +34,9 @@
     return PADRON_REPRESENTANTES;
   }
 
-  let tasaActivaRepresentante = typeof CONFIG_TASA_BCV !== "undefined" ? CONFIG_TASA_BCV.tasaInicial : 1;
+  let tasaActivaRepresentante = typeof CONFIG_TASA_BCV !== "undefined" ? Number(CONFIG_TASA_BCV.tasaInicial) || 1 : 1;
   let origenTasaInterno = typeof CONFIG_TASA_BCV !== "undefined"
-    ? `Tasa Inicial Fijada (${CONFIG_TASA_BCV.fechaFijada || "24-11-2026"})`
+    ? `Tasa Inicial Fijada (${CONFIG_TASA_BCV.fechaInicial || "24-11-2026"})`
     : "Base";
   let registroActual = null;
   let alumnoSeleccionadoActual = null;
@@ -65,7 +65,11 @@
   }
 
   function guardarHistorialPagosRep(lista) {
-    localStorage.setItem(CLAVE_PAGOS_REP, JSON.stringify(lista));
+    try {
+      localStorage.setItem(CLAVE_PAGOS_REP, JSON.stringify(lista));
+    } catch {
+      // Ignorar error de cuota
+    }
   }
 
   function cabecerasSupabase() {
@@ -84,16 +88,20 @@
     const payload = {
       referencia: String(registroPago.pago?.nroReferencia || "").trim(),
       alumno: String(registroPago.alumno?.nombreApellido || "").trim(),
+      representante: String(registroPago.representante?.nombreApellido || "").trim(),
       cedula_alumno: String(registroPago.alumno?.cedula || "").trim(),
       cedula_representante: String(registroPago.representante?.cedula || "").trim(),
       seccion: String(registroPago.alumno?.gradoSeccion || "").trim(),
       meses: Array.isArray(registroPago.mesesPagados)
         ? registroPago.mesesPagados.join(", ")
         : String(registroPago.pago?.concepto || ""),
+      concepto: String(registroPago.pago?.concepto || "").trim(),
       metodo: metodoValor,
+      monto_usd: Number(registroPago.pago?.montoUsd || 0) || 0,
+      monto_bs: Number(registroPago.pago?.montoBs || 0) || 0,
       monto: Number(registroPago.pago?.montoBs || registroPago.pago?.montoUsd || 0) || 0,
       tasa_bcv: Number(registroPago.tasaAplicada || 0) || 0,
-      estado: "Pendiente",
+      estado: "En revisión",
       motivo: ""
     };
 
@@ -121,7 +129,11 @@
   }
 
   function guardarEstadosMesesGlobal(mapa) {
-    localStorage.setItem(CLAVE_ESTADOS_MESES_ALU, JSON.stringify(mapa));
+    try {
+      localStorage.setItem(CLAVE_ESTADOS_MESES_ALU, JSON.stringify(mapa));
+    } catch {
+      // Ignorar error de cuota
+    }
   }
 
   function obtenerMapaMesesAlumno(alumno) {
@@ -394,33 +406,41 @@
     const rep = registro.representante || {};
     const alumnos = registro.alumnos || [];
 
-    document.getElementById("repNombre").value = rep.nombreApellido || "";
-    document.getElementById("repCedula").value = rep.cedula || "";
-    document.getElementById("repDireccion").value = rep.direccion || "";
-    document.getElementById("repTelefono").value = rep.telefono || "";
+    const repNombreEl = document.getElementById("repNombre");
+    const repCedulaEl = document.getElementById("repCedula");
+    const repDireccionEl = document.getElementById("repDireccion");
+    const repTelefonoEl = document.getElementById("repTelefono");
+
+    if (repNombreEl) repNombreEl.value = rep.nombreApellido || "";
+    if (repCedulaEl) repCedulaEl.value = rep.cedula || "";
+    if (repDireccionEl) repDireccionEl.value = rep.direccion || "";
+    if (repTelefonoEl) repTelefonoEl.value = rep.telefono || "";
 
     const contSelector = document.getElementById("contenedorSelectorAlumno");
     const selectAlumno = document.getElementById("selectorAlumno");
-    selectAlumno.innerHTML = "";
-
-    if (alumnos.length > 1) {
-      contSelector.classList.remove("oculto");
-      alumnos.forEach((alu, idx) => {
-        const opt = document.createElement("option");
-        opt.value = String(idx);
-        opt.textContent = `${alu.nombreApellido} (${alu.gradoSeccion})`;
-        selectAlumno.appendChild(opt);
-      });
-      selectAlumno.onchange = () => {
-        renderizarAlumno(alumnos[Number(selectAlumno.value)] || alumnos[0]);
-      };
-    } else {
-      contSelector.classList.add("oculto");
+    if (selectAlumno) {
+      selectAlumno.innerHTML = "";
+      if (alumnos.length > 1) {
+        if (contSelector) contSelector.classList.remove("oculto");
+        alumnos.forEach((alu, idx) => {
+          const opt = document.createElement("option");
+          opt.value = String(idx);
+          opt.textContent = `${alu.nombreApellido} (${alu.gradoSeccion})`;
+          selectAlumno.appendChild(opt);
+        });
+        selectAlumno.onchange = () => {
+          renderizarAlumno(alumnos[Number(selectAlumno.value)] || alumnos[0]);
+        };
+      } else if (contSelector) {
+        contSelector.classList.add("oculto");
+      }
     }
 
     renderizarAlumno(alumnos[0] || {});
-    document.getElementById("formPagoRepresentante").classList.remove("oculto");
-    document.getElementById("mensajeEstado").textContent = "";
+    const formEl = document.getElementById("formPagoRepresentante");
+    const msgEstadoEl = document.getElementById("mensajeEstado");
+    if (formEl) formEl.classList.remove("oculto");
+    if (msgEstadoEl) msgEstadoEl.textContent = "";
   }
 
   function manejarBusquedaCedula() {
@@ -428,18 +448,22 @@
     const msgBusq = document.getElementById("mensajeBusqueda");
     const form = document.getElementById("formPagoRepresentante");
 
-    const encontrado = buscarPorCedula(inputCed.value);
+    const encontrado = buscarPorCedula(inputCed ? inputCed.value : "");
     if (!encontrado) {
-      form.classList.add("oculto");
+      if (form) form.classList.add("oculto");
       registroActual = null;
       alumnoSeleccionadoActual = null;
-      msgBusq.style.color = "#b91c1c";
-      msgBusq.textContent = "No se encontró ningún registro con esa cédula. Verifica e intenta de nuevo.";
+      if (msgBusq) {
+        msgBusq.style.color = "#b91c1c";
+        msgBusq.textContent = "No se encontró ningún registro con esa cédula. Verifica e intenta de nuevo.";
+      }
       return;
     }
 
-    msgBusq.style.color = "#0369a1";
-    msgBusq.textContent = `Datos encontrados para ${encontrado.representante.nombreApellido}. Selecciona los meses y completa los datos del pago.`;
+    if (msgBusq) {
+      msgBusq.style.color = "#0369a1";
+      msgBusq.textContent = `Datos encontrados para ${encontrado.representante.nombreApellido}. Selecciona los meses y completa los datos del pago.`;
+    }
     cargarRegistroEnFormulario(encontrado);
   }
 
@@ -570,9 +594,10 @@
         window.open(urlWa, "_blank", "noopener");
 
         renderizarAlumno(alumnoSeleccionadoActual);
-        document.getElementById("nroReferencia").value = "";
+        const refEl = document.getElementById("nroReferencia");
         const conceptoEl = document.getElementById("concepto");
         const montoBsEl = document.getElementById("montoBs");
+        if (refEl) refEl.value = "";
         if (conceptoEl) conceptoEl.value = "";
         if (montoUsdEl) montoUsdEl.value = "";
         if (montoBsEl) montoBsEl.value = "";
