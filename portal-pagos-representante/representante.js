@@ -131,7 +131,7 @@
       ? registroPago.mesesPagados.join(", ")
       : String(registroPago.pago?.concepto || "").trim();
 
-    const payloadBase = {
+    let payload = {
       referencia: String(registroPago.pago?.nroReferencia || "").trim(),
       alumno: String(registroPago.alumno?.nombreApellido || "").trim(),
       representante: String(registroPago.representante?.nombreApellido || "").trim(),
@@ -147,25 +147,11 @@
       motivo: ""
     };
 
-    const payloadMinimo = {
-      referencia: payloadBase.referencia,
-      alumno: payloadBase.alumno,
-      representante: payloadBase.representante,
-      cedula_alumno: payloadBase.cedula_alumno,
-      cedula_representante: payloadBase.cedula_representante,
-      seccion: payloadBase.seccion,
-      meses: payloadBase.meses,
-      metodo: payloadBase.metodo,
-      monto_usd: payloadBase.monto_usd,
-      monto_bs: payloadBase.monto_bs,
-      estado: payloadBase.estado
-    };
-
-    for (const cuerpo of [payloadBase, payloadMinimo]) {
+    for (let intento = 0; intento < 8; intento++) {
       const resp = await fetch(SUPABASE_PAGOS_ENDPOINT, {
         method: "POST",
         headers: cabecerasSupabase(),
-        body: JSON.stringify(cuerpo)
+        body: JSON.stringify(payload)
       });
 
       if (resp.ok) {
@@ -178,12 +164,25 @@
       }
 
       const errText = await resp.text();
-      if (resp.status === 400 && errText.includes("PGRST204") && cuerpo === payloadBase) {
+      let errJson = null;
+      try {
+        errJson = JSON.parse(errText);
+      } catch {
+        errJson = null;
+      }
+
+      const mensajeErr = String(errJson?.message || errText || "");
+      const matchColumna = mensajeErr.match(/Could not find the '([^']+)' column/i);
+
+      if (resp.status === 400 && matchColumna && matchColumna[1] in payload) {
+        delete payload[matchColumna[1]];
         continue;
       }
+
       throw new Error(`Error al guardar en Supabase (${resp.status}): ${errText}`);
     }
-    return null;
+
+    throw new Error("No se pudo guardar en Supabase tras ajustar columnas.");
   }
 
   function leerEstadosMesesGlobal() {
@@ -219,7 +218,6 @@
       return (cedAlu && pCed === cedAlu) || (nomAlu && pNom === nomAlu);
     });
 
-    // Ordenar para que pagos más recientes prevalezcan sobre anteriores
     pagosAlumno.slice().reverse().forEach((p) => {
       const estUpper = normalizarTexto(p.estado || p.pago?.estado || "");
       let estadoClave = "revision";
