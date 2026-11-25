@@ -7,16 +7,6 @@
     tableName: "pagos"
   };
 
-  const CLAVE_PAGOS_REP = "pagos_representantes_v1";
-  const CLAVES_PAGOS_POSIBLES = [
-    "pagos_representantes_v1",
-    "pagos_registrados_v1",
-    "pagos_registrados",
-    "historial_pagos_v1",
-    "historial_pagos",
-    "pagos_portal_v1",
-    "pagos_uei_san_antonio"
-  ];
   const CLAVE_ESTADOS_MESES_ALU = "estados_meses_alumnos_v1";
   const CLAVE_REGISTROS_ALU = "registros_alumnos_v1";
   const CLAVE_CACHE_PAGOS_SB = "cache_pagos_admin_supabase";
@@ -36,34 +26,6 @@
     { key: "AGOSTO",     label: "Agosto 2027",     year: 2027, month: 8 }
   ];
 
-  const INITIAL_REGISTROS = [
-    {"seccion": "1A", "ced": "R-2024595", "alumno": "RIVAS CORREA, ALBERTH JESUS", "sexo": "M", "f_nac": "27/8/2014", "ced_rep": "V-15477349", "representante": "RIVAS VASQUEZ, AMABLE DE JESUS", "telefonos": "04264607958", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-36152572", "alumno": "PALACIO PEREZ, KAMILA ALEJANDRA", "sexo": "F", "f_nac": "2/7/2014", "ced_rep": "V-26330201", "representante": "PEREZ BELTRAN, CARMEN TERESA", "telefonos": "04164038412 - 04249042951", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-36310061", "alumno": "VILLANUEVA HARO, CARLOS MANUEL", "sexo": "M", "f_nac": "14/10/2014", "ced_rep": "V-15688614", "representante": "HARO DE VILLANUEVA, KARLA ROSMAT DEL VALLE", "telefonos": "04124992061", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-36406560", "alumno": "BERENGUEL FLORES, MARCEL ALEXANDER", "sexo": "M", "f_nac": "4/4/2014", "ced_rep": "V-17069755", "representante": "FLORES PIZARRO, YENNIELYS CAROLINA", "telefonos": "04249664024", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-36513473", "alumno": "LIMAYMANTA GONZALEZ, JOSUE NAHIL", "sexo": "M", "f_nac": "29/3/2015", "ced_rep": "V-27182387", "representante": "GONZALEZ ORTIZ, ESTHEFANIA MAYDARLYN", "telefonos": "04242610327", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-36717037", "alumno": "MACUARISMA ARO, SANTIAGO JOSE", "sexo": "M", "f_nac": "2/12/2014", "ced_rep": "V-15476248", "representante": "ARO GUEVARA, YURILMA DEL VALLE", "telefonos": "04143020879", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-36722202", "alumno": "GUEVARA LANDA, ARIANA PAOLA", "sexo": "F", "f_nac": "31/3/2015", "ced_rep": "V-20884291", "representante": "GUEVARA VERA, REINALDO RAMCES", "telefonos": "04249433772", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-36830471", "alumno": "DIAZ ZAMORA, JOSUANGEL GABRIELA", "sexo": "F", "f_nac": "1/11/2014", "ced_rep": "V-25777024", "representante": "ZAMORA MATA, DANIELA DE LOS ANGELES", "telefonos": "04121941513", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-36837264", "alumno": "CARDENAS RENDON, DEIBIS ANDRES", "sexo": "M", "f_nac": "15/5/2013", "ced_rep": "V-25777881", "representante": "RENDON MAYORGA, MARIANNY JOSEFINA", "telefonos": "04123953231", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-36840816", "alumno": "REQUENA SUAREZ, KIARA VALENTINA", "sexo": "F", "f_nac": "15/11/2014", "ced_rep": "V-25003050", "representante": "SUAREZ GUZMAN, JANNIRE FRANCESCA", "telefonos": "04149885657", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-36869655", "alumno": "SÁNCHEZ RIVAS, ALI JOSUÉ", "sexo": "M", "f_nac": "23/2/2015", "ced_rep": "V-26330017", "representante": "RIVAS PADILLA, NORELYS CAROLINA", "telefonos": "04124635743", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-36904023", "alumno": "GRUMEITE JAMESSON, GEORGINA NAZARET", "sexo": "F", "f_nac": "21/1/2015", "ced_rep": "V-19905345", "representante": "JAMESSON MONTILLA, MISLEIDI NAZARETH", "telefonos": "04165867891", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-37037851", "alumno": "SAVINO FLORES, SABRINA DE LOS ANGELES", "sexo": "F", "f_nac": "27/10/2014", "ced_rep": "V-25003766", "representante": "FLORES FERNANDEZ, MAYRIMAR DE LOS ANGELES", "telefonos": "04122923422", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-37059654", "alumno": "MARTINEZ JARAMILLO, ISABELLA VALENTINA", "sexo": "F", "f_nac": "9/7/2014", "ced_rep": "V-9949618", "representante": "CARRASCO, MIGUELINA DEL CARMEN", "telefonos": "04129263856", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-37131708", "alumno": "MORILLO FRESCA, LUIS ALEJANDRO", "sexo": "M", "f_nac": "18/3/2015", "ced_rep": "V-26829630", "representante": "FRESCA GARCIA, ANA GABRIELA", "telefonos": "04242184350", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-37133410", "alumno": "SILVEIRA GUZMAN, ENMANUEL JOSE", "sexo": "M", "f_nac": "19/9/2014", "ced_rep": "V-26098914", "representante": "GUZMAN SOLANO, YURIANNYS ELENA", "telefonos": "04121666142", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-37178113", "alumno": "CORDERO MARCO, MARICERT JEHUDY", "sexo": "F", "f_nac": "6/2/2015", "ced_rep": "V-17878445", "representante": "MARCO CALZADILLA, MARIS ELIENNY", "telefonos": "04148814371", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-37284413", "alumno": "GARCIA BOCOURT, ENMANUEL JOSE", "sexo": "M", "f_nac": "21/5/2014", "ced_rep": "V-20928854", "representante": "BOCOURT MEDINA, DARYURIS NAYIBE", "telefonos": "04124035825", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-37609755", "alumno": "RIVERO MACHADO, YEIZIMAR SUJEY", "sexo": "F", "f_nac": "6/2/2015", "ced_rep": "V-26098712", "representante": "MACHADO RONDON, KAIRU MAR", "telefonos": "04121116997", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-37669015", "alumno": "MARCO RODRIGUEZ, YUBIANA VICTORIA", "sexo": "F", "f_nac": "13/6/2014", "ced_rep": "V-18960682", "representante": "RODRIGUEZ RONDON, YUBIRI JOSEFINA", "telefonos": "04249520235", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-37821938", "alumno": "CORDERO BERMUDEZ, VALERIA MILANYELA", "sexo": "F", "f_nac": "7/7/2014", "ced_rep": "V-25085294", "representante": "BERMUDEZ LOPEZ, ANYELINA CAROLINA", "telefonos": "04264892849", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PAGO", "NOVIEMBRE": "PAGO", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"},
-    {"seccion": "1A", "ced": "V-37823894", "alumno": "ZAPATA MUÑOZ, YEFERZON DANIEL", "sexo": "M", "f_nac": "19/12/2014", "ced_rep": "V-24701635", "representante": "MUÑOZ ASCANIO, YESSI CAROLINA", "telefonos": "04123879962", "INSC": "PAGO", "SEPTIEMBRE": "PAGO", "OCTUBRE": "PENDIENTE", "NOVIEMBRE": "PENDIENTE", "DICIEMBRE": "PENDIENTE", "ENERO": "PENDIENTE", "FEBRERO": "PENDIENTE", "MARZO": "PENDIENTE", "ABRIL": "PENDIENTE", "MAYO": "PENDIENTE", "JUNIO": "PENDIENTE", "JULIO": "PENDIENTE", "AGOSTO": "PENDIENTE"}
-  ];
-
-  // --------------------------------------------------------------------------
-  // UTILIDADES DE TEXTO, CÉDULAS Y TELÉFONOS
-  // --------------------------------------------------------------------------
   function normalizarTexto(val) {
     return String(val || "")
       .normalize("NFD")
@@ -112,6 +74,38 @@
       .replace(/'/g, "&#39;");
   }
 
+  function construirPadronDesdePadronInicial() {
+    if (typeof PADRON_INICIAL === "undefined" || !Array.isArray(PADRON_INICIAL)) {
+      return [];
+    }
+    const lista = [];
+    PADRON_INICIAL.forEach((grupo) => {
+      const rep = grupo.representante || {};
+      const alumnos = Array.isArray(grupo.alumnos) ? grupo.alumnos : [];
+      alumnos.forEach((alu) => {
+        const pendientesSet = new Set(
+          (Array.isArray(alu.mesesPendientes) ? alu.mesesPendientes : []).map((m) => normalizarTexto(m))
+        );
+        const fila = {
+          seccion: String(alu.gradoSeccion || "").trim().toUpperCase(),
+          ced: formatearCedula(alu.cedula || ""),
+          alumno: String(alu.nombreApellido || "").trim(),
+          sexo: "",
+          f_nac: "",
+          ced_rep: formatearCedula(rep.cedula || ""),
+          representante: String(rep.nombreApellido || "").trim(),
+          telefonos: completarTelefonosIncompletos(rep.telefono || ""),
+          INSC: "PAGO"
+        };
+        MESES_ESCOLARES.forEach((m) => {
+          fila[m.key] = pendientesSet.has(m.key) ? "PENDIENTE" : "PAGO";
+        });
+        lista.push(fila);
+      });
+    });
+    return lista;
+  }
+
   function sanitizarRegistroAlumno(raw) {
     const copia = Object.assign({}, raw);
     copia.seccion = String(copia.seccion || "").trim().toUpperCase();
@@ -120,9 +114,9 @@
     copia.alumno = String(copia.alumno || "").trim();
     copia.representante = String(copia.representante || "").trim();
     copia.telefonos = completarTelefonosIncompletos(copia.telefonos);
-    copia.INSC = copia.INSC ? String(copia.INSC).trim().toUpperCase() : "PENDIENTE";
+    copia.INSC = copia.INSC ? String(copia.INSC).trim().toUpperCase() : "PAGO";
     MESES_ESCOLARES.forEach((m) => {
-      copia[m.key] = copia[m.key] ? String(copia[m.key]).trim().toUpperCase() : "PENDIENTE";
+      copia[m.key] = copia[m.key] ? String(copia[m.key]).trim().toUpperCase() : "PAGO";
     });
     return copia;
   }
@@ -137,25 +131,26 @@
   }
 
   function cargarRegistrosIniciales() {
+    const desdePadron = construirPadronDesdePadronInicial();
+    if (desdePadron.length > 0) {
+      const saneados = desdePadron.map(sanitizarRegistroAlumno);
+      guardarRegistrosStorage(saneados);
+      return saneados;
+    }
     try {
       const raw = JSON.parse(localStorage.getItem(CLAVE_REGISTROS_ALU) || "null");
       if (Array.isArray(raw) && raw.length > 0) {
         return raw.map(sanitizarRegistroAlumno);
       }
     } catch {
-      // Usar padrón base
+      // Ignorar
     }
-    const base = INITIAL_REGISTROS.map(sanitizarRegistroAlumno);
-    guardarRegistrosStorage(base);
-    return base;
+    return [];
   }
 
   let registros = cargarRegistrosIniciales();
   let historialPagos = [];
 
-  // --------------------------------------------------------------------------
-  // FUNCIONES SUPABASE (REST)
-  // --------------------------------------------------------------------------
   function obtenerHeadersSupabase() {
     return {
       "apikey": SUPABASE_CONFIG.anonKey,
@@ -203,63 +198,69 @@
       .map((m) => m.label);
   }
 
+  function encontrarAlumnoPorPago(pago) {
+    const digAlu = soloDigitosCedula(pago?.alumnoCedula || pago?.ced || pago?.cedula_alumno);
+    const digRep = soloDigitosCedula(pago?.representanteCedula || pago?.ced_rep || pago?.cedula_representante);
+    const nomPago = normalizarTexto(pago?.alumno);
+    const repPago = normalizarTexto(pago?.representante);
+    const secPago = normalizarTexto(pago?.seccion);
+
+    if (digAlu) {
+      const porCedAlu = registros.find((r) => soloDigitosCedula(r.ced) === digAlu);
+      if (porCedAlu) return porCedAlu;
+    }
+
+    if (nomPago) {
+      if (secPago) {
+        const porNomSec = registros.find(
+          (r) => normalizarTexto(r.alumno) === nomPago && normalizarTexto(r.seccion) === secPago
+        );
+        if (porNomSec) return porNomSec;
+      }
+      const porNom = registros.find((r) => normalizarTexto(r.alumno) === nomPago);
+      if (porNom) return porNom;
+    }
+
+    if (digRep) {
+      const porCedRep = registros.find((r) => soloDigitosCedula(r.ced_rep) === digRep);
+      if (porCedRep) return porCedRep;
+    }
+
+    if (repPago) {
+      const porRep = registros.find((r) => normalizarTexto(r.representante) === repPago);
+      if (porRep) return porRep;
+    }
+
+    return null;
+  }
+
   function normalizarPagoCrudo(item, index = 0) {
-    const fechaBase = item.fechaLegible
-      ? String(item.fechaLegible).split(",")[0]
-      : (item.fechaRegistro
-        ? String(item.fechaRegistro).slice(0, 10)
-        : (item.fecha
-          ? String(item.fecha).slice(0, 10)
-          : (item.created_at ? String(item.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10))));
+    const fechaBase = item.fecha
+      ? String(item.fecha).slice(0, 10)
+      : (item.created_at ? String(item.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10));
 
-    const montoCandidato =
-      item.pago?.montoUsd ??
-      item.pago?.monto ??
-      item.monto_usd ??
-      item.montoUsd ??
-      item.monto ??
-      item.monto_bs ??
-      0;
-
+    const montoCandidato = item.monto_usd ?? item.montoUsd ?? item.monto ?? item.monto_bs ?? 0;
     const montoNum = Number(String(montoCandidato ?? "").replace(/[^0-9.,-]/g, "").replace(",", "."));
     const montoTexto = Number.isFinite(montoNum) && montoNum > 0
       ? `$${montoNum.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      : (typeof montoCandidato === "string" && montoCandidato.trim() ? montoCandidato.trim() : "$0,00");
+      : "$0,00";
 
-    const estadoAdmin = mapearEstadoDesdePortal(item.estado || item.pago?.estado);
-    const conceptoTexto = item.pago?.concepto || item.concepto || item.mes || item.descripcion || "Mensualidad";
-    const mesesPagados = Array.isArray(item.mesesPagados) && item.mesesPagados.length > 0
-      ? item.mesesPagados
-      : extraerMesesDeConcepto(conceptoTexto);
-
-    const alumnoNombreRaw = typeof item.alumno === "string"
-      ? item.alumno
-      : (item.alumno?.nombreApellido || item.nombre_alumno || item.nombreAlumno || item.estudiante || "");
-    const alumnoCedulaRaw = typeof item.alumno === "object"
-      ? (item.alumno?.cedula || item.alumno?.ced || "")
-      : (item.alumnoCedula || item.cedulaAlumno || item.cedula_alumno || item.ced || "");
-    const seccionRaw = typeof item.alumno === "object"
-      ? (item.alumno?.gradoSeccion || item.alumno?.seccion || "")
-      : (item.seccion || item.gradoSeccion || item.grado || "");
-    const repNombreRaw = typeof item.representante === "string"
-      ? item.representante
-      : (item.representante?.nombreApellido || item.nombre_representante || item.nombreRepresentante || "");
-    const repCedulaRaw = typeof item.representante === "object"
-      ? (item.representante?.cedula || item.representante?.ced_rep || "")
-      : (item.representanteCedula || item.cedulaRepresentante || item.cedula_representante || item.ced_rep || "");
+    const estadoAdmin = mapearEstadoDesdePortal(item.estado);
+    const conceptoTexto = item.meses || item.concepto || item.mes || "Mensualidad";
+    const mesesPagados = extraerMesesDeConcepto(conceptoTexto);
 
     const pagoNormalizado = {
-      id: item.id ?? item.uuid ?? `PAG-${index + 1}`,
+      id: item.id ?? `PAG-${index + 1}`,
       fecha: fechaBase,
-      referencia: item.pago?.nroReferencia || item.pago?.referencia || item.nroReferencia || item.referencia || item.comprobante || "",
-      seccion: seccionRaw,
-      alumno: alumnoNombreRaw,
-      alumnoCedula: formatearCedula(alumnoCedulaRaw),
-      representante: repNombreRaw,
-      representanteCedula: formatearCedula(repCedulaRaw),
+      referencia: item.referencia || "",
+      seccion: item.seccion || "",
+      alumno: item.alumno || "",
+      alumnoCedula: formatearCedula(item.cedula_alumno || ""),
+      representante: item.representante || "",
+      representanteCedula: formatearCedula(item.cedula_representante || ""),
       concepto: conceptoTexto,
       mesesPagados,
-      metodo: item.pago?.metodo || item.metodo_pago || item.metodoPago || item.metodo || "Transferencia / Pago Móvil",
+      metodo: item.metodo || "Transferencia / Pago Móvil",
       motivo: item.motivo || item.observacion || "",
       monto: montoTexto,
       estado: estadoAdmin
@@ -279,9 +280,6 @@
 
   async function cargarPagosAdminSupabase(filtros = {}) {
     try {
-      if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) {
-        throw new Error("Falta configurar SUPABASE_CONFIG.url o SUPABASE_CONFIG.anonKey");
-      }
       const params = new URLSearchParams();
       params.set("select", "*");
       params.set("order", "created_at.desc");
@@ -318,18 +316,15 @@
     params.set("id", `eq.${encodeURIComponent(String(pagoId))}`);
 
     const endpoint = `${SUPABASE_CONFIG.url.replace(/\/+$/, "")}/rest/v1/${SUPABASE_CONFIG.tableName}?${params.toString()}`;
-    const cuerpo = {
-      estado: estadoPortal,
-      updated_at: new Date().toISOString()
-    };
+    const cuerpoBase = { estado: estadoPortal };
     if (observacion) {
-      cuerpo.observacion = observacion;
+      cuerpoBase.motivo = observacion;
     }
 
     const respuesta = await fetch(endpoint, {
       method: "PATCH",
       headers: obtenerHeadersSupabase(),
-      body: JSON.stringify(cuerpo)
+      body: JSON.stringify(cuerpoBase)
     });
 
     if (!respuesta.ok) {
@@ -338,45 +333,6 @@
     }
 
     return respuesta.json();
-  }
-
-  // --------------------------------------------------------------------------
-  // VINCULACIÓN CON PADRÓN Y LOCALSTORAGE
-  // --------------------------------------------------------------------------
-  function encontrarAlumnoPorPago(pago) {
-    const digAlu = soloDigitosCedula(pago?.alumnoCedula || pago?.ced);
-    const digRep = soloDigitosCedula(pago?.representanteCedula || pago?.ced_rep);
-    const nomPago = normalizarTexto(pago?.alumno);
-    const repPago = normalizarTexto(pago?.representante);
-    const secPago = normalizarTexto(pago?.seccion);
-
-    if (digAlu) {
-      const porCedAlu = registros.find((r) => soloDigitosCedula(r.ced) === digAlu);
-      if (porCedAlu) return porCedAlu;
-    }
-
-    if (nomPago) {
-      if (secPago) {
-        const porNomSec = registros.find(
-          (r) => normalizarTexto(r.alumno) === nomPago && normalizarTexto(r.seccion) === secPago
-        );
-        if (porNomSec) return porNomSec;
-      }
-      const porNom = registros.find((r) => normalizarTexto(r.alumno) === nomPago);
-      if (porNom) return porNom;
-    }
-
-    if (digRep) {
-      const porCedRep = registros.find((r) => soloDigitosCedula(r.ced_rep) === digRep);
-      if (porCedRep) return porCedRep;
-    }
-
-    if (repPago) {
-      const porRep = registros.find((r) => normalizarTexto(r.representante) === repPago);
-      if (porRep) return porRep;
-    }
-
-    return null;
   }
 
   function coincideBusquedaConCedula(consultaRaw, candidatosTexto, candidatosCedula) {
@@ -419,86 +375,10 @@
     return textoRegistro.includes(normalizarTexto(consulta));
   }
 
-  function leerArrayStorage(clave) {
-    try {
-      const raw = JSON.parse(localStorage.getItem(clave) || "null");
-      if (Array.isArray(raw)) return raw;
-      if (raw && typeof raw === "object") {
-        if (Array.isArray(raw.pagos)) return raw.pagos;
-        if (Array.isArray(raw.items)) return raw.items;
-        return Object.values(raw).filter((v) => v && typeof v === "object");
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  }
-
-  function leerPagosRepresentanteStorage() {
-    const combinados = [];
-    const vistos = new Set();
-
-    CLAVES_PAGOS_POSIBLES.forEach((clave) => {
-      const arr = leerArrayStorage(clave);
-      arr.forEach((item, idx) => {
-        if (!item || typeof item !== "object") return;
-        const ref = item.pago?.nroReferencia || item.nroReferencia || item.referencia || "";
-        const alu = item.alumno?.nombreApellido || item.alumno || item.nombreAlumno || "";
-        const concepto = item.pago?.concepto || item.concepto || "";
-        const claveUnica = item.id
-          ? `ID:${item.id}`
-          : `F:${ref}|A:${normalizarTexto(alu)}|C:${normalizarTexto(concepto)}|I:${idx}`;
-        if (!vistos.has(claveUnica)) {
-          vistos.add(claveUnica);
-          combinados.push(item);
-        }
-      });
-    });
-
-    return combinados;
-  }
-
-  function actualizarEstadoMesesEnPortalStorage(pago, nuevoEstadoMes) {
-    const meses = Array.isArray(pago.mesesPagados) && pago.mesesPagados.length > 0
-      ? pago.mesesPagados
-      : extraerMesesDeConcepto(pago.concepto);
-    if (!meses.length) return;
-
-    let mapa = {};
-    try {
-      mapa = JSON.parse(localStorage.getItem(CLAVE_ESTADOS_MESES_ALU) || "{}");
-    } catch {
-      mapa = {};
-    }
-
-    const alumnoObj = encontrarAlumnoPorPago(pago);
-    const cedAluNorm = normalizarCedula(pago.alumnoCedula || (alumnoObj && alumnoObj.ced));
-    const nomAluNorm = normalizarTexto(pago.alumno || (alumnoObj && alumnoObj.alumno));
-    const secAluNorm = normalizarTexto(pago.seccion || (alumnoObj && alumnoObj.seccion));
-    const claveAlu = cedAluNorm ? `ALU_${cedAluNorm}` : `ALU_${nomAluNorm}_${secAluNorm}`;
-
-    if (!mapa[claveAlu]) mapa[claveAlu] = {};
-    let modificoRegistros = false;
-
-    meses.forEach((mesLabel) => {
-      const mesMatch = MESES_ESCOLARES.find(
-        (m) => normalizarTexto(m.label) === normalizarTexto(mesLabel) || normalizarTexto(mesLabel).includes(m.key)
-      );
-      const etiqueta = mesMatch ? mesMatch.label : mesLabel;
-      mapa[claveAlu][etiqueta] = nuevoEstadoMes;
-
-      if (nuevoEstadoMes === "aprobado" && mesMatch && alumnoObj) {
-        alumnoObj[mesMatch.key] = "PAGO";
-        modificoRegistros = true;
-      }
-    });
-
-    localStorage.setItem(CLAVE_ESTADOS_MESES_ALU, JSON.stringify(mapa));
-    if (modificoRegistros) guardarRegistrosStorage(registros);
-  }
-
   function aplicarAprobacionesAlPadron() {
+    registros = construirPadronDesdePadronInicial();
     let modificoRegistros = false;
+
     historialPagos.forEach((pago) => {
       if (pago.estado === "aprobado") {
         const aluMatch = encontrarAlumnoPorPago(pago);
@@ -517,31 +397,13 @@
         });
       }
     });
+
     if (modificoRegistros) guardarRegistrosStorage(registros);
   }
 
-  function construirHistorialPagos(datosSupabase = []) {
+  function construirHistorialPagos(datosSupabase) {
     const rawSupabase = Array.isArray(datosSupabase) ? datosSupabase : [];
-    const rawLocal = leerPagosRepresentanteStorage();
-    const combinados = [...rawSupabase, ...rawLocal];
-    const vistos = new Set();
-    const filtrados = [];
-
-    combinados.forEach((item, idx) => {
-      if (!item || typeof item !== "object") return;
-      const ref = item.pago?.nroReferencia || item.nroReferencia || item.referencia || "";
-      const alu = item.alumno?.nombreApellido || item.alumno || item.nombre_alumno || item.nombreAlumno || "";
-      const concepto = item.pago?.concepto || item.concepto || "";
-      const clave = item.id !== undefined && item.id !== null && item.id !== ""
-        ? `ID:${item.id}`
-        : `F:${ref}|A:${normalizarTexto(alu)}|C:${normalizarTexto(concepto)}|I:${idx}`;
-      if (!vistos.has(clave)) {
-        vistos.add(clave);
-        filtrados.push(item);
-      }
-    });
-
-    historialPagos = filtrados.map((item, index) => normalizarPagoCrudo(item, index));
+    historialPagos = rawSupabase.map((item, index) => normalizarPagoCrudo(item, index));
     aplicarAprobacionesAlPadron();
   }
 
@@ -549,38 +411,19 @@
     const pago = historialPagos.find((p) => String(p.id) === String(pagoId));
     if (!pago) return;
 
+    let motivoTexto = "";
+    if (nuevoEstado === "rechazado") {
+      motivoTexto = prompt("Indique el motivo del rechazo:", "Referencia no encontrada / monto incompleto") || "Rechazado por administración";
+      pago.motivo = motivoTexto;
+    }
+
     pago.estado = nuevoEstado;
-    const estadoPortal = mapearEstadoHaciaPortal(nuevoEstado);
+    aplicarAprobacionesAlPadron();
 
     try {
-      CLAVES_PAGOS_POSIBLES.forEach((clave) => {
-        const arr = leerArrayStorage(clave);
-        let cambio = false;
-        const actualizado = arr.map((item) => {
-          if (String(item.id) === String(pagoId)) {
-            cambio = true;
-            const copia = Object.assign({}, item, { estado: estadoPortal });
-            if (copia.pago && typeof copia.pago === "object") {
-              copia.pago = Object.assign({}, copia.pago, { estado: estadoPortal });
-            }
-            return copia;
-          }
-          return item;
-        });
-        if (cambio) {
-          localStorage.setItem(clave, JSON.stringify(actualizado));
-        }
-      });
-    } catch {
-      // Ignorar error local
-    }
-
-    if (nuevoEstado === "aprobado") {
-      actualizarEstadoMesesEnPortalStorage(pago, "aprobado");
-    }
-
-    try {
-      await actualizarEstadoPagoSupabase(pagoId, nuevoEstado);
+      await actualizarEstadoPagoSupabase(pagoId, nuevoEstado, motivoTexto);
+      const datosSb = await cargarPagosAdminSupabase({ estado: "todos" });
+      construirHistorialPagos(datosSb);
     } catch (err) {
       console.warn("[cambiarEstadoPago] No se pudo sincronizar PATCH en Supabase:", err.message);
     }
@@ -588,9 +431,6 @@
     renderTodo();
   }
 
-  // --------------------------------------------------------------------------
-  // MOROSIDAD Y VISTAS
-  // --------------------------------------------------------------------------
   function abrirVista(vista) {
     document.querySelectorAll(".kpi-card").forEach((c) => {
       c.classList.toggle("active", c.dataset.vista === vista);
@@ -655,9 +495,6 @@
       });
   }
 
-  // --------------------------------------------------------------------------
-  // RENDERIZADO DE CONTADORES Y TABLAS
-  // --------------------------------------------------------------------------
   function actualizarContadores() {
     const fechaCorte = getFechaCorte();
     const enRevision = historialPagos.filter((p) => p.estado === "revision").length;
@@ -805,28 +642,38 @@
   }
 
   function renderAlumnos() {
+    const thead = document.getElementById("theadAlumnos");
     const tbody = document.getElementById("tbodyAlumnos");
     if (!tbody) return;
+
     const input = document.getElementById("buscarAlumno");
     const consulta = input ? input.value.trim() : "";
     const filtrados = registros.filter((r) => coincideRegistroEnPadron(consulta, r));
 
+    const colsBase = ["seccion", "ced", "alumno", "representante", "ced_rep", "telefonos"];
+    const colsMeses = ["INSC", ...MESES_ESCOLARES.map((m) => m.key)];
+    const todasCols = [...colsBase, ...colsMeses];
+
+    if (thead) {
+      thead.innerHTML = todasCols.map((c) => `<th>${escaparHtml(c)}</th>`).join("");
+    }
+
     if (!filtrados.length) {
-      tbody.innerHTML = `<tr><td colspan="8">No se encontraron alumnos con ese criterio.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${todasCols.length}">No se encontraron alumnos con ese criterio.</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = filtrados.map((r) => `
-      <tr>
-        <td>${escaparHtml(r.seccion)}</td>
-        <td>${escaparHtml(r.ced)}</td>
-        <td>${escaparHtml(r.alumno)}</td>
-        <td>${escaparHtml(r.representante)}</td>
-        <td>${escaparHtml(r.ced_rep)}</td>
-        <td>${escaparHtml(r.telefonos)}</td>
-        <td>${escaparHtml(r.INSC)}</td>
-        <td>${escaparHtml(r.NOVIEMBRE)}</td>
-      </tr>`).join("");
+    tbody.innerHTML = filtrados.map((r) => {
+      const celdas = todasCols.map((col) => {
+        const val = r[col] ?? "";
+        if (colsMeses.includes(col)) {
+          const esPago = String(val).trim().toUpperCase() === "PAGO";
+          return `<td><span class="tag ${esPago ? "tag-aprobado" : "tag-revision"}">${escaparHtml(val || "PENDIENTE")}</span></td>`;
+        }
+        return `<td>${escaparHtml(val)}</td>`;
+      }).join("");
+      return `<tr>${celdas}</tr>`;
+    }).join("");
   }
 
   function renderTodo() {
@@ -838,8 +685,75 @@
     renderAlumnos();
   }
 
+  function descargarCSV(nombreArchivo, filas) {
+    const csv = filas
+      .map((fila) => fila.map((celda) => `"${String(celda ?? "").replace(/"/g, '""')}"`).join(";"))
+      .join("\r\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function descargarCarteraCSV() {
+    const lista = obtenerCarteraFiltrada();
+    const fechaCorteEl = document.getElementById("fechaCorte");
+    const corteStr = fechaCorteEl && fechaCorteEl.value ? fechaCorteEl.value : "2026-11-24";
+    const filas = [
+      ["Fecha Corte", "Sección", "Cédula", "Alumno", "Representante", "Teléfonos", "Meses Vencidos", "Condición", "Detalle Vencido"]
+    ];
+    lista.forEach((m) => {
+      filas.push([
+        corteStr,
+        m.seccion,
+        m.ced,
+        m.alumno,
+        m.representante,
+        m.telefonos,
+        m.cantidadVencida,
+        m.condicion,
+        m.mesesQueDebeTexto
+      ]);
+    });
+    descargarCSV(`cartera_morosidad_${corteStr}.csv`, filas);
+  }
+
+  function exportarPagos(tipo) {
+    const lista = historialPagos.filter((p) => p.estado === tipo);
+    const filas = [["Fecha", "Referencia", "Sección", "Alumno", "Representante", "Concepto", "Método", "Monto", "Estado", "Motivo"]];
+    lista.forEach((p) => {
+      filas.push([p.fecha, p.referencia, p.seccion, p.alumno, p.representante, p.concepto, p.metodo, p.monto, p.estado, p.motivo || ""]);
+    });
+    descargarCSV(`pagos_${tipo}.csv`, filas);
+  }
+
+  function imprimirVista(tituloReporte) {
+    const tituloPrevio = document.title;
+    document.title = `${tituloReporte} - UEI San Antonio C.A.`;
+    window.print();
+    setTimeout(() => {
+      document.title = tituloPrevio;
+    }, 300);
+  }
+
+  function abrirSelectorCsv() {
+    const input = document.getElementById("inputCsv");
+    if (input) input.click();
+  }
+
+  function toggleCajaPegar() {
+    const caja = document.getElementById("cajaPegarCsv");
+    if (!caja) return;
+    caja.style.display = (caja.style.display === "none" || !caja.style.display) ? "block" : "none";
+  }
+
   function enlazarEventosUI() {
-    document.querySelectorAll(".kpi-card[data-vista]").forEach((card) => {
+    document.querySelectorAll(".kpi-card[data-vista], .kpi-trigger[data-vista]").forEach((card) => {
       card.addEventListener("click", () => abrirVista(card.dataset.vista));
     });
 
@@ -871,6 +785,11 @@
   window.renderMorosos = renderMorosos;
   window.renderAlumnos = renderAlumnos;
   window.renderTodo = renderTodo;
+  window.descargarCarteraCSV = descargarCarteraCSV;
+  window.exportarPagos = exportarPagos;
+  window.imprimirVista = imprimirVista;
+  window.abrirSelectorCsv = abrirSelectorCsv;
+  window.toggleCajaPegar = toggleCajaPegar;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", iniciarPanelAdministrativo);
