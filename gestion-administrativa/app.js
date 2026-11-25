@@ -1,6 +1,9 @@
 (function () {
   "use strict";
 
+  const CLAVE_ACCESO_ADMIN = "2505";
+  const CLAVE_SESION_ADMIN = "sesion_admin_uei_san_antonio_v1";
+
   const SUPABASE_CONFIG = {
     url: "https://lnluwygaehlqsdpwouvv.supabase.co",
     anonKey: "sb_publishable_i7qcIcbkjSjZkqjVSt-jUA_ZR7RQlTA",
@@ -24,6 +27,64 @@
     { key: "JULIO",      label: "Julio 2027",      year: 2027, month: 7 },
     { key: "AGOSTO",     label: "Agosto 2027",     year: 2027, month: 8 }
   ];
+
+  let panelInicializado = false;
+  let registros = [];
+  let historialPagos = [];
+
+  function estaAutenticadoAdmin() {
+    try {
+      return sessionStorage.getItem(CLAVE_SESION_ADMIN) === "ok";
+    } catch {
+      return false;
+    }
+  }
+
+  function marcarAutenticadoAdmin() {
+    try {
+      sessionStorage.setItem(CLAVE_SESION_ADMIN, "ok");
+    } catch {
+      // Ignorar si sessionStorage no está disponible
+    }
+  }
+
+  function limpiarAutenticadoAdmin() {
+    try {
+      sessionStorage.removeItem(CLAVE_SESION_ADMIN);
+    } catch {
+      // Ignorar
+    }
+  }
+
+  function mostrarPantallaBloqueo(mensajeError = "") {
+    const pantalla = document.getElementById("pantallaBloqueoAdmin");
+    const contenido = document.getElementById("contenidoPanelAdmin");
+    const input = document.getElementById("inputClaveAdmin");
+    const errorEl = document.getElementById("errorClaveAdmin");
+
+    if (contenido) contenido.style.display = "none";
+    if (pantalla) pantalla.style.display = "flex";
+    if (errorEl) errorEl.textContent = mensajeError;
+    if (input) {
+      input.value = "";
+      setTimeout(() => input.focus(), 50);
+    }
+  }
+
+  function desbloquearVistaAdmin() {
+    const pantalla = document.getElementById("pantallaBloqueoAdmin");
+    const contenido = document.getElementById("contenidoPanelAdmin");
+    const errorEl = document.getElementById("errorClaveAdmin");
+
+    if (errorEl) errorEl.textContent = "";
+    if (pantalla) pantalla.style.display = "none";
+    if (contenido) contenido.style.display = "block";
+  }
+
+  function cerrarSesionAdmin() {
+    limpiarAutenticadoAdmin();
+    mostrarPantallaBloqueo("");
+  }
 
   function normalizarTexto(val) {
     return String(val || "")
@@ -142,9 +203,6 @@
     }
     return [];
   }
-
-  let registros = cargarRegistrosIniciales();
-  let historialPagos = [];
 
   function obtenerHeadersSupabase() {
     return {
@@ -776,13 +834,46 @@
   }
 
   async function iniciarPanelAdministrativo() {
+    if (panelInicializado) {
+      renderTodo();
+      return;
+    }
+    panelInicializado = true;
+
     enlazarEventosUI();
+    registros = cargarRegistrosIniciales();
     construirHistorialPagos(leerCacheSupabase());
     renderTodo();
 
     const datosSb = await cargarPagosAdminSupabase({ estado: "todos" });
     construirHistorialPagos(datosSb);
     renderTodo();
+  }
+
+  function configurarAccesoAdmin() {
+    const form = document.getElementById("formLoginAdmin");
+    const input = document.getElementById("inputClaveAdmin");
+
+    if (estaAutenticadoAdmin()) {
+      desbloquearVistaAdmin();
+      iniciarPanelAdministrativo();
+    } else {
+      mostrarPantallaBloqueo("");
+    }
+
+    if (form) {
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const claveIngresada = input ? input.value.trim() : "";
+        if (claveIngresada === CLAVE_ACCESO_ADMIN) {
+          marcarAutenticadoAdmin();
+          desbloquearVistaAdmin();
+          iniciarPanelAdministrativo();
+        } else {
+          mostrarPantallaBloqueo("Clave incorrecta. Intenta de nuevo.");
+        }
+      });
+    }
   }
 
   window.SUPABASE_CONFIG = SUPABASE_CONFIG;
@@ -798,10 +889,11 @@
   window.imprimirVista = imprimirVista;
   window.abrirSelectorCsv = abrirSelectorCsv;
   window.toggleCajaPegar = toggleCajaPegar;
+  window.cerrarSesionAdmin = cerrarSesionAdmin;
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", iniciarPanelAdministrativo);
+    document.addEventListener("DOMContentLoaded", configurarAccesoAdmin);
   } else {
-    iniciarPanelAdministrativo();
+    configurarAccesoAdmin();
   }
 })();

@@ -4,263 +4,236 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Panel Administrativo - UEI San Antonio C.A.</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="membrete">
-    <div class="membrete-izq">
-      <div class="logo-box">
-        <img id="logoImg" src="./logo.jpg" alt="Logo Colegio Privado Instituto San Antonio" />
-      </div>
-      <div class="institucion-datos">
-        <h1>UNIDAD EDUCATIVA INSTITUTO SAN ANTONIO C.A.</h1>
-        <p class="rif-texto"><strong>RIF: J-30392701-7</strong> &bull; Upata, Estado Bolívar</p>
-        <span class="badge-modulo">PANEL ADMINISTRATIVO &bull; AÑO ESCOLAR 2026–2027</span>
-      </div>
-    </div>
+  <div id="pantallaBloqueoAdmin" style="position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <form id="formLoginAdmin" style="background:#ffffff;color:#0f172a;width:100%;max-width:380px;padding:28px;border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,0.35);font-family:Arial,sans-serif;">
+      <h2 style="margin:0 0 8px;font-size:20px;">Acceso Administrativo</h2>
+      <p style="margin:0 0 18px;font-size:13px;color:#475569;">UEI San Antonio C.A. — Ingresa la clave para administrar pagos y morosidad.</p>
+      <label for="inputClaveAdmin" style="display:block;font-size:13px;font-weight:bold;margin-bottom:6px;">Clave de acceso</label>
+      <input type="password" id="inputClaveAdmin" required autocomplete="current-password" placeholder="Escribe la clave" style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;box-sizing:border-box;margin-bottom:14px;" />
+      <button type="submit" style="width:100%;padding:11px 16px;background:#0369a1;color:#ffffff;border:none;border-radius:6px;font-weight:bold;font-size:14px;cursor:pointer;">Entrar al panel</button>
+      <div id="errorClaveAdmin" style="margin-top:10px;font-size:13px;font-weight:bold;color:#b91c1c;min-height:18px;"></div>
+    </form>
+  </div>
 
-    <div class="membrete-der no-print">
-      <label for="fechaCorte">Fecha de corte:</label>
-      <input type="date" id="fechaCorte" value="2026-11-24" />
-      <span id="reglaInfo" class="regla-pill"></span>
-    </div>
-  </header>
-
-  <main class="container">
-    <section class="cards-grid no-print">
-      <div class="kpi-card card-revision active" data-vista="revision">
-        <button type="button" class="kpi-trigger" data-vista="revision" onclick="abrirVista('revision')">
-          <span class="kpi-titulo">Pagos en Revisión</span>
-          <span class="kpi-valor" id="countRevision">0</span>
-        </button>
-        <div class="kpi-acciones">
-          <button type="button" class="mini-btn" onclick="event.stopPropagation(); abrirVista('revision')">Ver</button>
-          <button type="button" class="mini-btn" onclick="event.stopPropagation(); exportarPagos('revision')">CSV</button>
+  <div id="contenidoPanelAdmin" style="display:none;">
+    <header class="membrete">
+      <div class="membrete-izq">
+        <img src="logo.jpg" alt="Logo UEI San Antonio C.A." class="logo-institucion" />
+        <div class="membrete-texto">
+          <h1>UNIDAD EDUCATIVA INSTITUTO SAN ANTONIO C.A.</h1>
+          <p class="rif-sub">RIF: J-30392701-7 • Upata, Estado Bolívar</p>
+          <div class="badges-membrete">
+            <span class="badge-panel">PANEL ADMINISTRATIVO • AÑO ESCOLAR 2026–2027</span>
+          </div>
         </div>
       </div>
 
-      <div class="kpi-card card-aprobados" data-vista="aprobados">
-        <button type="button" class="kpi-trigger" data-vista="aprobados" onclick="abrirVista('aprobados')">
-          <span class="kpi-titulo">Pagos Aprobados</span>
-          <span class="kpi-valor" id="countAprobados">0</span>
-        </button>
-        <div class="kpi-acciones">
-          <button type="button" class="mini-btn" onclick="event.stopPropagation(); abrirVista('aprobados')">Ver</button>
-          <button type="button" class="mini-btn" onclick="event.stopPropagation(); imprimirVista('Registro de Pagos Aprobados')">PDF</button>
+      <div class="membrete-der">
+        <div class="corte-control">
+          <label for="fechaCorte">Fecha de corte:</label>
+          <input type="date" id="fechaCorte" value="2026-11-24" />
         </div>
+        <span id="reglaInfo" class="regla-pill">Mes vencido desde el día 6 (corte día 24)</span>
+        <button type="button" id="btnCerrarSesionAdmin" onclick="cerrarSesionAdmin()" style="padding:8px 14px;background:#b91c1c;color:#ffffff;border:none;border-radius:6px;font-weight:bold;cursor:pointer;">Cerrar sesión</button>
       </div>
+    </header>
 
-      <div class="kpi-card card-rechazados" data-vista="rechazados">
-        <button type="button" class="kpi-trigger" data-vista="rechazados" onclick="abrirVista('rechazados')">
-          <span class="kpi-titulo">Pagos Rechazados</span>
-          <span class="kpi-valor" id="countRechazados">0</span>
-        </button>
-        <div class="kpi-acciones">
-          <button type="button" class="mini-btn" onclick="event.stopPropagation(); abrirVista('rechazados')">Ver</button>
-          <button type="button" class="mini-btn" onclick="event.stopPropagation(); exportarPagos('rechazados')">CSV</button>
+    <main class="contenedor">
+      <section class="kpis-grid">
+        <article class="kpi-card kpi-revision active" data-vista="revision">
+          <div class="kpi-titulo">Pagos en Revisión</div>
+          <div class="kpi-numero" id="countRevision">0</div>
+          <div class="kpi-acciones no-print">
+            <button type="button" class="btn-mini" onclick="event.stopPropagation(); abrirVista('revision');">Ver</button>
+            <button type="button" class="btn-mini" onclick="event.stopPropagation(); exportarPagos('revision');">CSV</button>
+          </div>
+        </article>
+
+        <article class="kpi-card kpi-aprobados" data-vista="aprobados">
+          <div class="kpi-titulo">Pagos Aprobados</div>
+          <div class="kpi-numero" id="countAprobados">0</div>
+          <div class="kpi-acciones no-print">
+            <button type="button" class="btn-mini" onclick="event.stopPropagation(); abrirVista('aprobados');">Ver</button>
+            <button type="button" class="btn-mini" onclick="event.stopPropagation(); imprimirVista('Pagos Aprobados');">PDF</button>
+          </div>
+        </article>
+
+        <article class="kpi-card kpi-rechazados" data-vista="rechazados">
+          <div class="kpi-titulo">Pagos Rechazados</div>
+          <div class="kpi-numero" id="countRechazados">0</div>
+          <div class="kpi-acciones no-print">
+            <button type="button" class="btn-mini" onclick="event.stopPropagation(); abrirVista('rechazados');">Ver</button>
+            <button type="button" class="btn-mini" onclick="event.stopPropagation(); exportarPagos('rechazados');">CSV</button>
+          </div>
+        </article>
+
+        <article class="kpi-card kpi-morosos" data-vista="morosos">
+          <div class="kpi-titulo">Cartera de Morosidad</div>
+          <div class="kpi-numero" id="countMorosos">0</div>
+          <div class="kpi-acciones no-print">
+            <button type="button" class="btn-mini" onclick="event.stopPropagation(); abrirVista('morosos');">Ver</button>
+            <button type="button" class="btn-mini" onclick="event.stopPropagation(); descargarCarteraCSV();">CSV</button>
+          </div>
+        </article>
+
+        <article class="kpi-card kpi-alumnos" data-vista="alumnos">
+          <div class="kpi-titulo">Listado de Alumnos</div>
+          <div class="kpi-numero" id="countAlumnos">0</div>
+          <div class="kpi-acciones no-print">
+            <button type="button" class="btn-mini" onclick="event.stopPropagation(); abrirVista('alumnos');">Ver</button>
+            <button type="button" class="btn-mini" onclick="event.stopPropagation(); abrirSelectorCsv();">Cargar CSV</button>
+          </div>
+        </article>
+      </section>
+
+      <input type="file" id="inputCsv" accept=".csv,.txt" style="display:none;" />
+
+      <section id="vista-revision" class="panel active">
+        <div class="panel-header">
+          <h2>Pagos en Revisión</h2>
+          <div class="controles-tabla no-print">
+            <input type="text" id="buscarRevision" placeholder="Buscar por alumno, representante, cédula o referencia..." />
+            <button type="button" class="btn-secundario" onclick="exportarPagos('revision');">Exportar CSV</button>
+          </div>
         </div>
-      </div>
-
-      <div class="kpi-card card-morosidad" data-vista="morosidad">
-        <button type="button" class="kpi-trigger" data-vista="morosidad" onclick="abrirVista('morosidad')">
-          <span class="kpi-titulo">Cartera de Morosidad</span>
-          <span class="kpi-valor" id="countMorosos">0</span>
-        </button>
-        <div class="kpi-acciones">
-          <button type="button" class="mini-btn" onclick="event.stopPropagation(); abrirVista('morosidad')">Ver</button>
-          <button type="button" class="mini-btn" onclick="event.stopPropagation(); descargarCarteraCSV()">CSV</button>
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Referencia</th>
+                <th>Sección</th>
+                <th>Alumno</th>
+                <th>Representante</th>
+                <th>Concepto</th>
+                <th>Método</th>
+                <th>Monto</th>
+                <th>Estado</th>
+                <th class="no-print">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyRevision"></tbody>
+          </table>
         </div>
-      </div>
+      </section>
 
-      <div class="kpi-card card-alumnos" data-vista="alumnos">
-        <button type="button" class="kpi-trigger" data-vista="alumnos" onclick="abrirVista('alumnos')">
-          <span class="kpi-titulo">Listado de Alumnos</span>
-          <span class="kpi-valor" id="countAlumnos">0</span>
-        </button>
-        <div class="kpi-acciones">
-          <button type="button" class="mini-btn" onclick="event.stopPropagation(); abrirVista('alumnos')">Ver</button>
-          <button type="button" class="mini-btn" onclick="event.stopPropagation(); abrirSelectorCsv()">Cargar CSV</button>
+      <section id="vista-aprobados" class="panel">
+        <div class="panel-header">
+          <h2>Pagos Aprobados</h2>
+          <div class="controles-tabla no-print">
+            <input type="text" id="buscarAprobados" placeholder="Buscar por alumno, representante, cédula o referencia..." />
+            <button type="button" class="btn-secundario" onclick="imprimirVista('Pagos Aprobados');">Exportar PDF / Imprimir</button>
+          </div>
         </div>
-      </div>
-    </section>
-
-    <input type="file" id="inputCsv" accept=".csv,.txt" style="display:none" />
-
-    <section id="vista-revision" class="panel active">
-      <div class="panel-header">
-        <h2>Historial de Pagos en Revisión</h2>
-        <div class="acciones-barra no-print">
-          <input type="text" id="buscarRevision" placeholder="Cédula, referencia, alumno o representante..." />
-          <button type="button" id="btnBuscarRevision" class="btn btn-secundario">Buscar</button>
-          <button type="button" class="btn btn-primario" onclick="exportarPagos('revision')">Descargar Historial CSV</button>
-          <button type="button" class="btn btn-pdf" onclick="imprimirVista('Historial de Pagos en Revisión')">Exportar PDF / Imprimir</button>
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Referencia</th>
+                <th>Sección</th>
+                <th>Alumno</th>
+                <th>Representante</th>
+                <th>Concepto</th>
+                <th>Método</th>
+                <th>Monto</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyAprobados"></tbody>
+          </table>
         </div>
-      </div>
-      <div class="tabla-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Referencia</th>
-              <th>Sección</th>
-              <th>Alumno</th>
-              <th>Representante</th>
-              <th>Concepto</th>
-              <th>Método</th>
-              <th>Monto</th>
-              <th>Estado</th>
-              <th class="no-print">Acción</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyRevision"></tbody>
-        </table>
-      </div>
-    </section>
+      </section>
 
-    <section id="vista-aprobados" class="panel">
-      <div class="panel-header">
-        <h2>Registro de Pagos Aprobados</h2>
-        <div class="acciones-barra no-print">
-          <input type="text" id="buscarAprobados" placeholder="Cédula, referencia, alumno o representante..." />
-          <button type="button" id="btnBuscarAprobados" class="btn btn-secundario">Buscar</button>
-          <button type="button" class="btn btn-primario" onclick="exportarPagos('aprobados')">Descargar Historial CSV</button>
-          <button type="button" class="btn btn-pdf" onclick="imprimirVista('Registro de Pagos Aprobados')">Exportar PDF / Imprimir</button>
+      <section id="vista-rechazados" class="panel">
+        <div class="panel-header">
+          <h2>Pagos Rechazados</h2>
+          <div class="controles-tabla no-print">
+            <input type="text" id="buscarRechazados" placeholder="Buscar por alumno, representante, cédula o referencia..." />
+            <button type="button" class="btn-secundario" onclick="exportarPagos('rechazados');">Exportar CSV</button>
+          </div>
         </div>
-      </div>
-      <div class="tabla-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Referencia</th>
-              <th>Sección</th>
-              <th>Alumno</th>
-              <th>Representante</th>
-              <th>Concepto</th>
-              <th>Método</th>
-              <th>Monto</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyAprobados"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="vista-rechazados" class="panel">
-      <div class="panel-header">
-        <h2>Historial de Pagos Rechazados</h2>
-        <div class="acciones-barra no-print">
-          <input type="text" id="buscarRechazados" placeholder="Cédula, referencia, alumno o motivo..." />
-          <button type="button" id="btnBuscarRechazados" class="btn btn-secundario">Buscar</button>
-          <button type="button" class="btn btn-primario" onclick="exportarPagos('rechazados')">Descargar Historial CSV</button>
-          <button type="button" class="btn btn-pdf" onclick="imprimirVista('Historial de Pagos Rechazados')">Exportar PDF / Imprimir</button>
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Referencia</th>
+                <th>Sección</th>
+                <th>Alumno</th>
+                <th>Representante</th>
+                <th>Concepto</th>
+                <th>Motivo</th>
+                <th>Monto</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyRechazados"></tbody>
+          </table>
         </div>
-      </div>
-      <div class="tabla-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Referencia</th>
-              <th>Sección</th>
-              <th>Alumno</th>
-              <th>Representante</th>
-              <th>Concepto</th>
-              <th>Motivo / Observación</th>
-              <th>Monto</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyRechazados"></tbody>
-        </table>
-      </div>
-    </section>
+      </section>
 
-    <section id="vista-morosidad" class="panel">
-      <div class="panel-header">
-        <h2>Cartera de Morosidad / Pendientes (Insolventes)</h2>
-        <div class="acciones-barra no-print">
-          <input type="text" id="buscarMoroso" placeholder="Cédula, sección o alumno..." />
-          <button type="button" id="btnBuscarMoroso" class="btn btn-secundario">Buscar</button>
-
-          <button type="button" id="btnDescargarCartera" class="btn btn-primario" onclick="descargarCarteraCSV()">
-            Descargar historial de cartera pendiente
-          </button>
-
-          <label for="filtroMesesVencidos" class="sr-only">Mensualidades vencidas</label>
-          <select id="filtroMesesVencidos" title="Filtrar por cantidad de mensualidades vencidas">
-            <option value="todos">Todos</option>
-            <option value="1">1 mensualidad</option>
-            <option value="2">2 mensualidades</option>
-            <option value="3">3 mensualidades</option>
-            <option value="4">4 mensualidades</option>
-            <option value="5">5 mensualidades</option>
-            <option value="6">6 mensualidades</option>
-            <option value="7">7 mensualidades</option>
-            <option value="8">8 mensualidades</option>
-            <option value="9">9 mensualidades</option>
-            <option value="10">10 mensualidades</option>
-          </select>
-
-          <button type="button" class="btn btn-pdf" onclick="imprimirVista('Cartera de Morosidad Escolar')">Exportar PDF / Imprimir</button>
+      <section id="vista-morosos" class="panel">
+        <div class="panel-header">
+          <h2>Cartera de Morosidad</h2>
+          <div class="controles-tabla no-print">
+            <input type="text" id="buscarMoroso" placeholder="Buscar alumno, representante, cédula o sección..." />
+            <select id="filtroMesesVencidos">
+              <option value="todos">Todos los meses vencidos</option>
+              <option value="1">1 mes vencido</option>
+              <option value="2">2 meses vencidos</option>
+              <option value="3">3 meses vencidos</option>
+            </select>
+            <button type="button" class="btn-primario" onclick="descargarCarteraCSV();">Descargar CSV</button>
+            <button type="button" class="btn-secundario" onclick="imprimirVista('Cartera de Morosidad');">Exportar PDF / Imprimir</button>
+          </div>
         </div>
-      </div>
-
-      <p id="resumenMorosos" class="resumen"></p>
-
-      <div class="tabla-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Sección</th>
-              <th>Cédula</th>
-              <th>Alumno</th>
-              <th>Representante</th>
-              <th>Teléfonos</th>
-              <th>Meses vencidos</th>
-              <th>Detalle vencido</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyMorosos"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="vista-alumnos" class="panel">
-      <div class="panel-header">
-        <h2>Listado Completo de Alumnos (2026–2027)</h2>
-        <div class="acciones-barra no-print">
-          <input type="text" id="buscarAlumno" placeholder="Cédula, alumno o sección..." />
-          <button type="button" id="btnBuscarAlumno" class="btn btn-secundario">Buscar</button>
-          <button type="button" class="btn btn-secundario" onclick="abrirSelectorCsv()">Cargar CSV</button>
-          <button type="button" class="btn btn-secundario" onclick="toggleCajaPegar()">Pegar desde Excel/CSV</button>
-          <button type="button" id="btnDescargarAlumnos" class="btn btn-primario">Descargar Listado CSV</button>
-          <button type="button" class="btn btn-pdf" onclick="imprimirVista('Listado Completo de Alumnos')">Exportar PDF / Imprimir</button>
+        <p id="resumenMorosos" class="texto-resumen"></p>
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Sección</th>
+                <th>Cédula</th>
+                <th>Alumno</th>
+                <th>Representante</th>
+                <th>Teléfonos</th>
+                <th>Condición</th>
+                <th>Meses Vencidos</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyMorosos"></tbody>
+          </table>
         </div>
-      </div>
+      </section>
 
-      <div id="cajaPegarCsv" class="pegar-box no-print" style="display:none;">
-        <p class="pegar-ayuda">Pega aquí tus filas copiadas desde Excel o CSV (separadas por tabulador, punto y coma `;` o coma `,`):</p>
-        <textarea id="textoPegarCsv" rows="6" placeholder="seccion;ced;alumno;sexo;f_nac;ced_rep;representante;telefonos;INSC;SEPTIEMBRE;OCTUBRE;NOVIEMBRE..."></textarea>
-        <div class="pegar-acciones">
-          <button type="button" class="btn btn-primario" onclick="importarTextoPegado()">Importar datos pegados</button>
-          <button type="button" class="btn btn-secundario" onclick="toggleCajaPegar()">Cerrar</button>
+      <section id="vista-alumnos" class="panel">
+        <div class="panel-header">
+          <h2>Listado Completo de Alumnos (2026–2027)</h2>
+          <div class="controles-tabla no-print">
+            <input type="text" id="buscarAlumno" placeholder="Buscar alumno, cédula o sección..." />
+            <button type="button" class="btn-secundario" onclick="abrirSelectorCsv();">Cargar CSV</button>
+            <button type="button" class="btn-secundario" onclick="toggleCajaPegar();">Pegar desde Excel/CSV</button>
+            <button type="button" class="btn-primario" onclick="imprimirVista('Listado de Alumnos');">Exportar PDF / Imprimir</button>
+          </div>
         </div>
-      </div>
-
-      <div class="tabla-wrap">
-        <table>
-          <thead>
-            <tr id="theadAlumnos"></tr>
-          </thead>
-          <tbody id="tbodyAlumnos"></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
+        <div id="cajaPegarCsv" style="display:none;margin-bottom:14px;">
+          <textarea id="areaPegarCsv" rows="4" style="width:100%;" placeholder="Pega aquí filas separadas por comas o punto y coma..."></textarea>
+        </div>
+        <div class="tabla-wrap">
+          <table>
+            <thead id="theadAlumnos"></thead>
+            <tbody id="tbodyAlumnos"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <script src="../portal-pagos-representante/padron_data.js"></script>
-  <script src="./app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
