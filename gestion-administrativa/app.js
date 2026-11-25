@@ -139,9 +139,6 @@
       const rep = grupo.representante || {};
       const alumnos = Array.isArray(grupo.alumnos) ? grupo.alumnos : [];
       alumnos.forEach((alu) => {
-        const pendientesSet = new Set(
-          (Array.isArray(alu.mesesPendientes) ? alu.mesesPendientes : []).map((m) => normalizarTexto(m))
-        );
         const fila = {
           seccion: String(alu.gradoSeccion || "").trim().toUpperCase(),
           ced: formatearCedula(alu.cedula || ""),
@@ -154,7 +151,7 @@
           INSC: "PAGO"
         };
         MESES_ESCOLARES.forEach((m) => {
-          fila[m.key] = pendientesSet.has(m.key) ? "PENDIENTE" : "PAGO";
+          fila[m.key] = "PENDIENTE";
         });
         lista.push(fila);
       });
@@ -172,7 +169,7 @@
     copia.telefonos = completarTelefonosIncompletos(copia.telefonos);
     copia.INSC = copia.INSC ? String(copia.INSC).trim().toUpperCase() : "PAGO";
     MESES_ESCOLARES.forEach((m) => {
-      copia[m.key] = copia[m.key] ? String(copia[m.key]).trim().toUpperCase() : "PAGO";
+      copia[m.key] = copia[m.key] ? String(copia[m.key]).trim().toUpperCase() : "PENDIENTE";
     });
     return copia;
   }
