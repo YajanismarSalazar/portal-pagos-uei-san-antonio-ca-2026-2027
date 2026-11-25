@@ -111,7 +111,7 @@
 
   async function obtenerPagosDesdeSupabase() {
     try {
-      const url = `${SUPABASE_PAGOS_ENDPOINT}?select=*&order=created_at.desc`;
+      const url = `${SUPABASE_PAGOS_ENDPOINT}?select=*&order=id.desc`;
       const resp = await fetch(url, { method: "GET", headers: cabecerasSupabase() });
       if (!resp.ok) return pagosRemotosCache;
       const datos = await resp.json();
@@ -131,18 +131,19 @@
       ? registroPago.mesesPagados.join(", ")
       : String(registroPago.pago?.concepto || "").trim();
 
+    const montoBsNum = Number(registroPago.pago?.montoBs || 0) || 0;
+    const tasaNum = Number(registroPago.tasaAplicada || 0) || 0;
+
     let payload = {
       referencia: String(registroPago.pago?.nroReferencia || "").trim(),
       alumno: String(registroPago.alumno?.nombreApellido || "").trim(),
-      representante: String(registroPago.representante?.nombreApellido || "").trim(),
       cedula_alumno: String(registroPago.alumno?.cedula || "").trim(),
       cedula_representante: String(registroPago.representante?.cedula || "").trim(),
       seccion: String(registroPago.alumno?.gradoSeccion || "").trim(),
       meses: mesesStr,
       metodo: metodoValor,
-      monto_usd: Number(registroPago.pago?.montoUsd || 0) || 0,
-      monto_bs: Number(registroPago.pago?.montoBs || 0) || 0,
-      tasa_bcv: Number(registroPago.tasaAplicada || 0) || 0,
+      monto: montoBsNum,
+      tasa_bcv: tasaNum,
       estado: "En revisión",
       motivo: ""
     };

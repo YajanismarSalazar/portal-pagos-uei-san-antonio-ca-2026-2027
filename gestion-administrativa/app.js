@@ -7,7 +7,6 @@
     tableName: "pagos"
   };
 
-  const CLAVE_ESTADOS_MESES_ALU = "estados_meses_alumnos_v1";
   const CLAVE_REGISTROS_ALU = "registros_alumnos_v1";
   const CLAVE_CACHE_PAGOS_SB = "cache_pagos_admin_supabase";
 
@@ -51,10 +50,6 @@
       .toUpperCase()
       .replace(/^[VEJRP][-\s.]*/i, "")
       .replace(/[^0-9]/g, "");
-  }
-
-  function normalizarCedula(val) {
-    return soloDigitosCedula(val);
   }
 
   function completarTelefonosIncompletos(valorTelefonos) {
@@ -188,7 +183,7 @@
   function mapearEstadoHaciaPortal(estadoAdmin) {
     if (estadoAdmin === "aprobado") return "Aprobado";
     if (estadoAdmin === "rechazado") return "Rechazado";
-    return "En revisión";
+    return "Pendiente";
   }
 
   function extraerMesesDeConcepto(concepto) {
@@ -234,16 +229,29 @@
     return null;
   }
 
+  function formatearMontoRegistro(item) {
+    const montoBsRaw = item.monto ?? item.monto_bs ?? 0;
+    const montoBs = Number(String(montoBsRaw ?? "").replace(/[^0-9.,-]/g, "").replace(",", "."));
+    const tasaRaw = item.tasa_bcv ?? item.tasa_bcv_usada ?? 0;
+    const tasa = Number(String(tasaRaw ?? "").replace(/[^0-9.,-]/g, "").replace(",", "."));
+
+    if (Number.isFinite(montoBs) && montoBs > 0) {
+      const bsStr = `${montoBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`;
+      if (Number.isFinite(tasa) && tasa > 0) {
+        const usdCalc = montoBs / tasa;
+        const usdStr = `$${usdCalc.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return `${bsStr} (${usdStr})`;
+      }
+      return bsStr;
+    }
+
+    return "0,00 Bs.";
+  }
+
   function normalizarPagoCrudo(item, index = 0) {
     const fechaBase = item.fecha
       ? String(item.fecha).slice(0, 10)
       : (item.created_at ? String(item.created_at).slice(0, 10) : new Date().toISOString().slice(0, 10));
-
-    const montoCandidato = item.monto_usd ?? item.montoUsd ?? item.monto ?? item.monto_bs ?? 0;
-    const montoNum = Number(String(montoCandidato ?? "").replace(/[^0-9.,-]/g, "").replace(",", "."));
-    const montoTexto = Number.isFinite(montoNum) && montoNum > 0
-      ? `$${montoNum.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      : "$0,00";
 
     const estadoAdmin = mapearEstadoDesdePortal(item.estado);
     const conceptoTexto = item.meses || item.concepto || item.mes || "Mensualidad";
@@ -262,7 +270,7 @@
       mesesPagados,
       metodo: item.metodo || "Transferencia / Pago Móvil",
       motivo: item.motivo || item.observacion || "",
-      monto: montoTexto,
+      monto: formatearMontoRegistro(item),
       estado: estadoAdmin
     };
 
@@ -282,10 +290,10 @@
     try {
       const params = new URLSearchParams();
       params.set("select", "*");
-      params.set("order", "created_at.desc");
+      params.set("order", "id.desc");
 
       if (filtros.estado && filtros.estado.toLowerCase() !== "todos") {
-        params.set("estado", `eq.${filtros.estado.toLowerCase().trim()}`);
+        params.set("estado", `eq.${filtros.estado.trim()}`);
       }
 
       const endpoint = `${SUPABASE_CONFIG.url.replace(/\/+$/, "")}/rest/v1/${SUPABASE_CONFIG.tableName}?${params.toString()}`;
