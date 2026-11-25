@@ -130,32 +130,88 @@
       .replace(/'/g, "&#39;");
   }
 
-  function construirPadronDesdePadronInicial() {
-    if (typeof PADRON_INICIAL === "undefined" || !Array.isArray(PADRON_INICIAL)) {
+  function leerRegistrosGuardados() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(CLAVE_REGISTROS_ALU) || "null");
+      return Array.isArray(raw) ? raw.map(sanitizarRegistroAlumno) : [];
+    } catch {
       return [];
     }
+  }
+
+  function construirPadronDesdePadronInicial() {
+    const previos = leerRegistrosGuardados();
+
+    if (typeof PADRON_INICIAL === "undefined" || !Array.isArray(PADRON_INICIAL) || PADRON_INICIAL.length === 0) {
+      return previos;
+    }
+
     const lista = [];
+    const vistosCedula = new Set();
+    const vistosNombre = new Set();
+
     PADRON_INICIAL.forEach((grupo) => {
       const rep = grupo.representante || {};
       const alumnos = Array.isArray(grupo.alumnos) ? grupo.alumnos : [];
       alumnos.forEach((alu) => {
-        const fila = {
-          seccion: String(alu.gradoSeccion || "").trim().toUpperCase(),
-          ced: formatearCedula(alu.cedula || ""),
-          alumno: String(alu.nombreApellido || "").trim(),
-          sexo: "",
-          f_nac: "",
-          ced_rep: formatearCedula(rep.cedula || ""),
-          representante: String(rep.nombreApellido || "").trim(),
-          telefonos: completarTelefonosIncompletos(rep.telefono || ""),
-          INSC: "PAGO"
-        };
-        MESES_ESCOLARES.forEach((m) => {
-          fila[m.key] = "PENDIENTE";
+        const cedFormateada = formatearCedula(alu.cedula || "");
+        const nomNormalizado = normalizarTexto(alu.nombreApellido || "");
+        const pendientesArr = Array.isArray(alu.mesesPendientes)
+          ? alu.mesesPendientes.map((m) => normalizarTexto(m))
+          : [];
+        const tieneArregloPendientes = Array.isArray(alu.mesesPendientes);
+
+        const previoMatch = previos.find((p) => {
+          const digP = soloDigitosCedula(p.ced);
+          const digA = soloDigitosCedula(cedFormateada);
+          if (digP && digA && digP === digA) return true;
+          return nomNormalizado && normalizarTexto(p.alumno) === nomNormalizado;
         });
+
+        const fila = {
+          seccion: String(alu.gradoSeccion || previoMatch?.seccion || "").trim().toUpperCase(),
+          ced: cedFormateada || previoMatch?.ced || "",
+          alumno: String(alu.nombreApellido || previoMatch?.alumno || "").trim(),
+          sexo: previoMatch?.sexo || "",
+          f_nac: previoMatch?.f_nac || "",
+          ced_rep: formatearCedula(rep.cedula || previoMatch?.ced_rep || ""),
+          representante: String(rep.nombreApellido || previoMatch?.representante || "").trim(),
+          telefonos: completarTelefonosIncompletos(rep.telefono || previoMatch?.telefonos || ""),
+          INSC: previoMatch?.INSC || "PAGO"
+        };
+
+        MESES_ESCOLARES.forEach((m) => {
+          const estadoPrevio = previoMatch && previoMatch[m.key]
+            ? String(previoMatch[m.key]).trim().toUpperCase()
+            : "";
+
+          if (estadoPrevio === "PAGO") {
+            fila[m.key] = "PAGO";
+          } else if (tieneArregloPendientes) {
+            const estaPendiente = pendientesArr.some(
+              (pend) => pend === m.key || pend.includes(m.key)
+            );
+            fila[m.key] = estaPendiente ? "PENDIENTE" : "PAGO";
+          } else {
+            fila[m.key] = estadoPrevio || "PENDIENTE";
+          }
+        });
+
+        if (soloDigitosCedula(fila.ced)) vistosCedula.add(soloDigitosCedula(fila.ced));
+        if (normalizarTexto(fila.alumno)) vistosNombre.add(normalizarTexto(fila.alumno));
         lista.push(fila);
       });
     });
+
+    previos.forEach((prev) => {
+      const digPrev = soloDigitosCedula(prev.ced);
+      const nomPrev = normalizarTexto(prev.alumno);
+      const yaExiste = (digPrev && vistosCedula.has(digPrev)) || (nomPrev && vistosNombre.has(nomPrev));
+      if (!yaExiste) {
+        lista.push(sanitizarRegistroAlumno(prev));
+      }
+    });
+
     return lista;
   }
 
@@ -184,21 +240,14 @@
   }
 
   function cargarRegistrosIniciales() {
-    const desdePadron = construirPadronDesdePadronInicial();
-    if (desdePadron.length > 0) {
-      const saneados = desdePadron.map(sanitizarRegistroAlumno);
+    const construidos = construirPadronDesdePadronInicial();
+    if (construidos.length > 0) {
+      const saneados = construidos.map(sanitizarRegistroAlumno);
       guardarRegistrosStorage(saneados);
       return saneados;
     }
-    try {
-      const raw = JSON.parse(localStorage.getItem(CLAVE_REGISTROS_ALU) || "null");
-      if (Array.isArray(raw) && raw.length > 0) {
-        return raw.map(sanitizarRegistroAlumno);
-      }
-    } catch {
-      // Ignorar
-    }
-    return [];
+    const guardados = leerRegistrosGuardados();
+    return guardados;
   }
 
   function obtenerHeadersSupabase() {
