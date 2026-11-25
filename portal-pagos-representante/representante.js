@@ -24,6 +24,18 @@
     "Agosto 2027"
   ];
 
+  // Enero a Agosto de 2027 siempre permanecen pendientes (no se marcan como pagados)
+  const MESES_SIEMPRE_PENDIENTES = new Set([
+    "ENERO 2027",
+    "FEBRERO 2027",
+    "MARZO 2027",
+    "ABRIL 2027",
+    "MAYO 2027",
+    "JUNIO 2027",
+    "JULIO 2027",
+    "AGOSTO 2027"
+  ]);
+
   let tasaActivaRepresentante = typeof CONFIG_TASA_BCV !== "undefined" ? Number(CONFIG_TASA_BCV.tasaInicial) || 1 : 1;
   let origenTasaInterno = typeof CONFIG_TASA_BCV !== "undefined"
     ? `Tasa Inicial Fijada (${CONFIG_TASA_BCV.fechaInicial || "24-11-2026"})`
@@ -102,6 +114,10 @@
       return `${encontrado2027.charAt(0) + encontrado2027.slice(1).toLowerCase()} 2027`;
     }
     return limpio;
+  }
+
+  function esMesFijoPendiente(mesLabel) {
+    return MESES_SIEMPRE_PENDIENTES.has(normalizarTexto(mesLabel));
   }
 
   function extraerMesesDeTexto(texto) {
@@ -234,8 +250,16 @@
 
       mesesRaw.forEach((m) => {
         const mNorm = normalizarMesConAno(m);
-        if (mNorm) mapa[mNorm] = estadoClave;
+        if (mNorm && !esMesFijoPendiente(mNorm)) {
+          mapa[mNorm] = estadoClave;
+        }
       });
+    });
+
+    MESES_ANO_ESCOLAR.forEach((mes) => {
+      if (esMesFijoPendiente(mes)) {
+        delete mapa[mes];
+      }
     });
 
     return mapa;
@@ -429,7 +453,8 @@
     }
 
     MESES_ANO_ESCOLAR.forEach((mes) => {
-      const estadoMes = mapaEstados[mes] || "disponible";
+      const fijoPendiente = esMesFijoPendiente(mes);
+      const estadoMes = fijoPendiente ? "disponible" : (mapaEstados[mes] || "disponible");
 
       const label = document.createElement("label");
       label.className = "chip-mes";
@@ -459,7 +484,7 @@
       } else if (estadoMes === "rechazado") {
         tagEstado.textContent = "Rechazado (reintentar)";
       } else {
-        tagEstado.textContent = "$50";
+        tagEstado.textContent = fijoPendiente ? "Pendiente ($50)" : "$50";
       }
 
       label.appendChild(tagEstado);
@@ -635,11 +660,12 @@
         lista.unshift(registro);
         guardarHistorialPagosRep(lista);
 
-        if (mesesSeleccionados.length > 0) {
+        const mesesActualizables = mesesSeleccionados.filter((mes) => !esMesFijoPendiente(mes));
+        if (mesesActualizables.length > 0) {
           const todosEstados = leerEstadosMesesGlobal();
           const claveAlu = obtenerClaveAlumno(alumnoSeleccionadoActual);
           if (!todosEstados[claveAlu]) todosEstados[claveAlu] = {};
-          mesesSeleccionados.forEach((mes) => {
+          mesesActualizables.forEach((mes) => {
             todosEstados[claveAlu][mes] = "revision";
           });
           guardarEstadosMesesGlobal(todosEstados);

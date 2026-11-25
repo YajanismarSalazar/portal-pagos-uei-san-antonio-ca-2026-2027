@@ -28,6 +28,18 @@
     { key: "AGOSTO",     label: "Agosto 2027",     year: 2027, month: 8 }
   ];
 
+  // Enero a Agosto de 2027 siempre permanecen PENDIENTE en todos los alumnos
+  const MESES_SIEMPRE_PENDIENTES = new Set([
+    "ENERO",
+    "FEBRERO",
+    "MARZO",
+    "ABRIL",
+    "MAYO",
+    "JUNIO",
+    "JULIO",
+    "AGOSTO"
+  ]);
+
   let panelInicializado = false;
   let registros = [];
   let historialPagos = [];
@@ -130,6 +142,10 @@
       .replace(/'/g, "&#39;");
   }
 
+  function esMesFijoPendiente(mesKey) {
+    return MESES_SIEMPRE_PENDIENTES.has(normalizarTexto(mesKey));
+  }
+
   function leerRegistrosGuardados() {
     try {
       const raw = JSON.parse(localStorage.getItem(CLAVE_REGISTROS_ALU) || "null");
@@ -181,17 +197,20 @@
         };
 
         MESES_ESCOLARES.forEach((m) => {
+          if (esMesFijoPendiente(m.key)) {
+            fila[m.key] = "PENDIENTE";
+            return;
+          }
+
           const estadoPrevio = previoMatch && previoMatch[m.key]
             ? String(previoMatch[m.key]).trim().toUpperCase()
             : "";
 
-          if (estadoPrevio === "PAGO") {
-            fila[m.key] = "PAGO";
-          } else if (tieneArregloPendientes) {
+          if (tieneArregloPendientes) {
             const estaPendiente = pendientesArr.some(
               (pend) => pend === m.key || pend.includes(m.key)
             );
-            fila[m.key] = estaPendiente ? "PENDIENTE" : "PAGO";
+            fila[m.key] = estaPendiente ? "PENDIENTE" : (estadoPrevio === "PAGO" ? "PAGO" : "PAGO");
           } else {
             fila[m.key] = estadoPrevio || "PENDIENTE";
           }
@@ -225,7 +244,11 @@
     copia.telefonos = completarTelefonosIncompletos(copia.telefonos);
     copia.INSC = copia.INSC ? String(copia.INSC).trim().toUpperCase() : "PAGO";
     MESES_ESCOLARES.forEach((m) => {
-      copia[m.key] = copia[m.key] ? String(copia[m.key]).trim().toUpperCase() : "PENDIENTE";
+      if (esMesFijoPendiente(m.key)) {
+        copia[m.key] = "PENDIENTE";
+      } else {
+        copia[m.key] = copia[m.key] ? String(copia[m.key]).trim().toUpperCase() : "PENDIENTE";
+      }
     });
     return copia;
   }
@@ -502,12 +525,21 @@
           const mesMatch = MESES_ESCOLARES.find(
             (m) => normalizarTexto(m.label) === normalizarTexto(mesLabel) || normalizarTexto(mesLabel).includes(m.key)
           );
-          if (mesMatch && aluMatch[mesMatch.key] !== "PAGO") {
+          if (mesMatch && !esMesFijoPendiente(mesMatch.key) && aluMatch[mesMatch.key] !== "PAGO") {
             aluMatch[mesMatch.key] = "PAGO";
             modificoRegistros = true;
           }
         });
       }
+    });
+
+    registros.forEach((r) => {
+      MESES_ESCOLARES.forEach((m) => {
+        if (esMesFijoPendiente(m.key) && r[m.key] !== "PENDIENTE") {
+          r[m.key] = "PENDIENTE";
+          modificoRegistros = true;
+        }
+      });
     });
 
     if (modificoRegistros) guardarRegistrosStorage(registros);
@@ -777,9 +809,9 @@
 
     tbody.innerHTML = filtrados.map((r) => {
       const celdas = todasCols.map((col) => {
-        const val = r[col] ?? "";
+        const val = esMesFijoPendiente(col) ? "PENDIENTE" : (r[col] ?? "");
         if (colsMeses.includes(col)) {
-          const esPago = String(val).trim().toUpperCase() === "PAGO";
+          const esPago = !esMesFijoPendiente(col) && String(val).trim().toUpperCase() === "PAGO";
           return `<td><span class="tag ${esPago ? "tag-aprobado" : "tag-revision"}">${escaparHtml(val || "PENDIENTE")}</span></td>`;
         }
         return `<td>${escaparHtml(val)}</td>`;
