@@ -43,6 +43,7 @@
   let panelInicializado = false;
   let registros = [];
   let historialPagos = [];
+  let rechazoPendienteResolver = null;
 
   function estaAutenticadoAdmin() {
     try {
@@ -551,13 +552,91 @@
     aplicarAprobacionesAlPadron();
   }
 
+  function asegurarModalMotivoRechazo() {
+    let modal = document.getElementById("modalMotivoRechazo");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "modalMotivoRechazo";
+    modal.style.cssText = [
+      "position:fixed",
+      "inset:0",
+      "z-index:10000",
+      "background:rgba(15,23,42,0.55)",
+      "display:none",
+      "align-items:center",
+      "justify-content:center",
+      "padding:20px"
+    ].join(";");
+
+    modal.innerHTML = `
+      <div style="background:#ffffff;color:#0f172a;width:100%;max-width:420px;padding:20px;border-radius:10px;box-shadow:0 16px 36px rgba(0,0,0,0.28);">
+        <label for="inputMotivoRechazo" style="display:block;font-size:0.9rem;font-weight:700;margin-bottom:10px;color:#0f172a;">Motivo del rechazo</label>
+        <input type="text" id="inputMotivoRechazo" style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.9rem;margin-bottom:14px;" />
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <button type="button" id="btnCancelarRechazo" class="btn-secundario">Cancelar</button>
+          <button type="button" id="btnConfirmarRechazo" class="btn-rechazar" style="padding:8px 14px;font-size:0.85rem;">Aceptar</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const input = document.getElementById("inputMotivoRechazo");
+    const btnCancelar = document.getElementById("btnCancelarRechazo");
+    const btnAceptar = document.getElementById("btnConfirmarRechazo");
+
+    const cerrar = (resultado) => {
+      modal.style.display = "none";
+      const resolver = rechazoPendienteResolver;
+      rechazoPendienteResolver = null;
+      if (resolver) resolver(resultado);
+    };
+
+    btnCancelar.addEventListener("click", () => cerrar(null));
+    btnAceptar.addEventListener("click", () => {
+      const val = input.value.trim();
+      cerrar(val || "Referencia no encontrada / monto incompleto");
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        btnAceptar.click();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        btnCancelar.click();
+      }
+    });
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) cerrar(null);
+    });
+
+    return modal;
+  }
+
+  function solicitarMotivoRechazo() {
+    const modal = asegurarModalMotivoRechazo();
+    const input = document.getElementById("inputMotivoRechazo");
+    return new Promise((resolve) => {
+      rechazoPendienteResolver = resolve;
+      input.value = "Referencia no encontrada / monto incompleto";
+      modal.style.display = "flex";
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 30);
+    });
+  }
+
   async function cambiarEstadoPago(pagoId, nuevoEstado) {
     const pago = historialPagos.find((p) => String(p.id) === String(pagoId));
     if (!pago) return;
 
     let motivoTexto = "";
     if (nuevoEstado === "rechazado") {
-      motivoTexto = prompt("Indique el motivo del rechazo:", "Referencia no encontrada / monto incompleto") || "Rechazado por administración";
+      const motivoIngresado = await solicitarMotivoRechazo();
+      if (motivoIngresado === null) return;
+      motivoTexto = motivoIngresado;
       pago.motivo = motivoTexto;
     }
 

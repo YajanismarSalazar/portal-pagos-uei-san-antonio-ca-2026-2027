@@ -70,7 +70,7 @@
         </article>
 
         <article class="kpi-card kpi-morosos" data-vista="morosos">
-          <div class="kpi-titulo">Cartera de Morosidad</div>
+          <div class="kpi-titulo">Alumnos con deudas</div>
           <div class="kpi-numero" id="countMorosos">0</div>
           <div class="kpi-acciones no-print">
             <button type="button" class="btn-mini" onclick="event.stopPropagation(); abrirVista('morosos');">Ver</button>
@@ -88,7 +88,7 @@
         </article>
 
         <article class="kpi-card kpi-alumnos" data-vista="alumnos">
-          <div class="kpi-titulo">Listado de Alumnos</div>
+          <div class="kpi-titulo">Listado total de alumnos</div>
           <div class="kpi-numero" id="countAlumnos">0</div>
           <div class="kpi-acciones no-print">
             <button type="button" class="btn-mini" onclick="event.stopPropagation(); abrirVista('alumnos');">Ver</button>
@@ -186,7 +186,7 @@
 
       <section id="vista-morosos" class="panel">
         <div class="panel-header">
-          <h2>Cartera de Morosidad</h2>
+          <h2>Alumnos con deudas</h2>
           <div class="controles-tabla no-print">
             <input type="text" id="buscarMoroso" placeholder="Buscar alumno, representante, cédula o sección..." />
             <select id="filtroMesesVencidos">
@@ -196,7 +196,7 @@
               <option value="3">3 meses vencidos</option>
             </select>
             <button type="button" class="btn-primario" onclick="descargarCarteraCSV();">Descargar CSV</button>
-            <button type="button" class="btn-secundario" onclick="imprimirVista('Cartera de Morosidad');">Exportar PDF / Imprimir</button>
+            <button type="button" class="btn-secundario" onclick="imprimirVista('Alumnos con deudas');">Exportar PDF / Imprimir</button>
           </div>
         </div>
         <p id="resumenMorosos" class="texto-resumen"></p>
@@ -248,12 +248,12 @@
 
       <section id="vista-alumnos" class="panel">
         <div class="panel-header">
-          <h2>Listado Completo de Alumnos (2026–2027)</h2>
+          <h2>Listado total de alumnos (2026–2027)</h2>
           <div class="controles-tabla no-print">
             <input type="text" id="buscarAlumno" placeholder="Buscar alumno, cédula o sección..." />
             <button type="button" class="btn-secundario" onclick="abrirSelectorCsv();">Cargar CSV</button>
             <button type="button" class="btn-secundario" onclick="toggleCajaPegar();">Pegar desde Excel/CSV</button>
-            <button type="button" class="btn-primario" onclick="imprimirVista('Listado de Alumnos');">Exportar PDF / Imprimir</button>
+            <button type="button" class="btn-primario" onclick="imprimirVista('Listado total de alumnos');">Exportar PDF / Imprimir</button>
           </div>
         </div>
         <div id="cajaPegarCsv" style="display:none;margin-bottom:14px;">
@@ -273,4 +273,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-```[cite: 10]
