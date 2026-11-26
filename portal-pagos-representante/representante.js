@@ -24,18 +24,6 @@
     "Agosto 2027"
   ];
 
-  // Enero a Agosto de 2027 siempre permanecen pendientes (no se marcan como pagados)
-  const MESES_SIEMPRE_PENDIENTES = new Set([
-    "ENERO 2027",
-    "FEBRERO 2027",
-    "MARZO 2027",
-    "ABRIL 2027",
-    "MAYO 2027",
-    "JUNIO 2027",
-    "JULIO 2027",
-    "AGOSTO 2027"
-  ]);
-
   let tasaActivaRepresentante = typeof CONFIG_TASA_BCV !== "undefined" ? Number(CONFIG_TASA_BCV.tasaInicial) || 1 : 1;
   let origenTasaInterno = typeof CONFIG_TASA_BCV !== "undefined"
     ? `Tasa Inicial Fijada (${CONFIG_TASA_BCV.fechaInicial || "24-11-2026"})`
@@ -170,10 +158,6 @@
     return limpio;
   }
 
-  function esMesFijoPendiente(mesLabel) {
-    return MESES_SIEMPRE_PENDIENTES.has(normalizarTexto(mesLabel));
-  }
-
   function extraerMesesDeTexto(texto) {
     const upper = normalizarTexto(texto);
     return MESES_ANO_ESCOLAR.filter((m) => upper.includes(normalizarTexto(m)));
@@ -281,10 +265,9 @@
 
     if (Array.isArray(alumno?.mesesPendientes)) {
       const pendientesNorm = alumno.mesesPendientes.map((m) => normalizarTexto(m));
-      const mesesEvaluables2026 = ["Septiembre 2026", "Octubre 2026", "Noviembre 2026", "Diciembre 2026"];
+      const mesesEvaluables = ["Septiembre 2026", "Octubre 2026", "Noviembre 2026", "Diciembre 2026"];
 
-      mesesEvaluables2026.forEach((mesLabel) => {
-        if (esMesFijoPendiente(mesLabel)) return;
+      mesesEvaluables.forEach((mesLabel) => {
         const mesUpper = normalizarTexto(mesLabel);
         const estaPendiente = pendientesNorm.some(
           (p) => p === mesUpper || mesUpper.startsWith(p) || p.startsWith(mesUpper.split(" ")[0])
@@ -322,16 +305,10 @@
 
       mesesRaw.forEach((m) => {
         const mNorm = normalizarMesConAno(m);
-        if (mNorm && !esMesFijoPendiente(mNorm)) {
+        if (mNorm) {
           mapa[mNorm] = estadoClave;
         }
       });
-    });
-
-    MESES_ANO_ESCOLAR.forEach((mes) => {
-      if (esMesFijoPendiente(mes)) {
-        delete mapa[mes];
-      }
     });
 
     return mapa;
@@ -565,8 +542,7 @@
     }
 
     MESES_ANO_ESCOLAR.forEach((mes) => {
-      const fijoPendiente = esMesFijoPendiente(mes);
-      const estadoMes = fijoPendiente ? "disponible" : (mapaEstados[mes] || "disponible");
+      const estadoMes = mapaEstados[mes] || "disponible";
 
       const label = document.createElement("label");
       label.className = "chip-mes";
@@ -896,12 +872,11 @@
         lista.unshift(registro);
         guardarHistorialPagosRep(lista);
 
-        const mesesActualizables = mesesSeleccionados.filter((mes) => !esMesFijoPendiente(mes));
-        if (mesesActualizables.length > 0) {
+        if (mesesSeleccionados.length > 0) {
           const todosEstados = leerEstadosMesesGlobal();
           const claveAlu = obtenerClaveAlumno(alumnoSeleccionadoActual);
           if (!todosEstados[claveAlu]) todosEstados[claveAlu] = {};
-          mesesActualizables.forEach((mes) => {
+          mesesSeleccionados.forEach((mes) => {
             todosEstados[claveAlu][mes] = "revision";
           });
           guardarEstadosMesesGlobal(todosEstados);
