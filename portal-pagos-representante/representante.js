@@ -24,6 +24,17 @@
     "Agosto 2027"
   ];
 
+  const MESES_2027_SET = new Set([
+    "ENERO 2027",
+    "FEBRERO 2027",
+    "MARZO 2027",
+    "ABRIL 2027",
+    "MAYO 2027",
+    "JUNIO 2027",
+    "JULIO 2027",
+    "AGOSTO 2027"
+  ]);
+
   let tasaActivaRepresentante = typeof CONFIG_TASA_BCV !== "undefined" ? Number(CONFIG_TASA_BCV.tasaInicial) || 1 : 1;
   let origenTasaInterno = typeof CONFIG_TASA_BCV !== "undefined"
     ? `Tasa Inicial Fijada (${CONFIG_TASA_BCV.fechaInicial || "24-11-2026"})`
@@ -158,6 +169,10 @@
     return limpio;
   }
 
+  function esMes2027Label(mesLabel) {
+    return MESES_2027_SET.has(normalizarTexto(mesLabel));
+  }
+
   function extraerMesesDeTexto(texto) {
     const upper = normalizarTexto(texto);
     return MESES_ANO_ESCOLAR.filter((m) => upper.includes(normalizarTexto(m)));
@@ -265,9 +280,9 @@
 
     if (Array.isArray(alumno?.mesesPendientes)) {
       const pendientesNorm = alumno.mesesPendientes.map((m) => normalizarTexto(m));
-      const mesesEvaluables = ["Septiembre 2026", "Octubre 2026", "Noviembre 2026", "Diciembre 2026"];
+      const mesesEvaluables2026 = ["Septiembre 2026", "Octubre 2026", "Noviembre 2026", "Diciembre 2026"];
 
-      mesesEvaluables.forEach((mesLabel) => {
+      mesesEvaluables2026.forEach((mesLabel) => {
         const mesUpper = normalizarTexto(mesLabel);
         const estaPendiente = pendientesNorm.some(
           (p) => p === mesUpper || mesUpper.startsWith(p) || p.startsWith(mesUpper.split(" ")[0])
@@ -277,6 +292,13 @@
         }
       });
     }
+
+    // Limpiar cualquier estado "aprobado" heredado en meses de 2027 si no proviene de un pago aprobado real
+    MESES_ANO_ESCOLAR.forEach((mes) => {
+      if (esMes2027Label(mes) && mapa[mes] === "aprobado") {
+        delete mapa[mes];
+      }
+    });
 
     const cedAlu = normalizarCedula(alumno?.cedula);
     const nomAlu = normalizarTexto(alumno?.nombreApellido);

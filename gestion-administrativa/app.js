@@ -28,6 +28,18 @@
     { key: "AGOSTO",     label: "Agosto 2027",     year: 2027, month: 8 }
   ];
 
+  // Meses de 2027 que no deben figurar como PAGADOS por defecto sin pago aprobado
+  const MESES_2027_KEYS = new Set([
+    "ENERO",
+    "FEBRERO",
+    "MARZO",
+    "ABRIL",
+    "MAYO",
+    "JUNIO",
+    "JULIO",
+    "AGOSTO"
+  ]);
+
   let panelInicializado = false;
   let registros = [];
   let historialPagos = [];
@@ -131,6 +143,10 @@
       .replace(/'/g, "&#39;");
   }
 
+  function esMes2027(mesKey) {
+    return MESES_2027_KEYS.has(normalizarTexto(mesKey));
+  }
+
   function leerRegistrosGuardados() {
     try {
       const raw = JSON.parse(localStorage.getItem(CLAVE_REGISTROS_ALU) || "null");
@@ -182,16 +198,21 @@
         };
 
         MESES_ESCOLARES.forEach((m) => {
-          const estadoPrevio = previoMatch && previoMatch[m.key]
-            ? String(previoMatch[m.key]).trim().toUpperCase()
-            : "";
+          // Enero a Agosto 2027 siempre inician PENDIENTE en el padrón base
+          if (esMes2027(m.key)) {
+            fila[m.key] = "PENDIENTE";
+            return;
+          }
 
           if (tieneArregloPendientes) {
             const estaPendiente = pendientesArr.some(
               (pend) => pend === m.key || pend.includes(m.key)
             );
-            fila[m.key] = estaPendiente ? "PENDIENTE" : (estadoPrevio === "PAGO" ? "PAGO" : "PAGO");
+            fila[m.key] = estaPendiente ? "PENDIENTE" : "PAGO";
           } else {
+            const estadoPrevio = previoMatch && previoMatch[m.key]
+              ? String(previoMatch[m.key]).trim().toUpperCase()
+              : "";
             fila[m.key] = estadoPrevio || "PENDIENTE";
           }
         });
@@ -224,7 +245,8 @@
     copia.telefonos = completarTelefonosIncompletos(copia.telefonos);
     copia.INSC = copia.INSC ? String(copia.INSC).trim().toUpperCase() : "PAGO";
     MESES_ESCOLARES.forEach((m) => {
-      copia[m.key] = copia[m.key] ? String(copia[m.key]).trim().toUpperCase() : "PENDIENTE";
+      const val = copia[m.key] ? String(copia[m.key]).trim().toUpperCase() : "PENDIENTE";
+      copia[m.key] = val === "PAGO" ? "PAGO" : "PENDIENTE";
     });
     return copia;
   }
