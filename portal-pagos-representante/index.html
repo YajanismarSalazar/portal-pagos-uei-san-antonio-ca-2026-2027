@@ -146,16 +146,19 @@
     .chip-mes {
       display: flex;
       flex-direction: column;
+      justify-content: center;
+      min-height: 52px;
       gap: 4px;
       background: #fef3c7;
       border: 1px solid #f59e0b;
       color: #78350f;
-      padding: 9px 11px;
+      padding: 10px 12px;
       border-radius: 8px;
-      font-size: 12.5px;
+      font-size: 13px;
       font-weight: bold;
       cursor: pointer;
       user-select: none;
+      box-sizing: border-box;
       transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
     }
     .chip-mes-fila {
@@ -291,22 +294,31 @@
       </div>
 
       <div class="caja-cuenta">
-        <strong>ÚNICA CUENTA AUTORIZADA PARA PAGOS:</strong><br />
-        <strong>Titular:</strong> UEI SAN ANTONIO CA | <strong>Banco:</strong> Bancamiga<br />
-        <strong>RIF:</strong> J303927017 | <strong>Teléfono:</strong> 04248912975
+        <strong>DATOS ÚNICOS DE PAGO:</strong><br />
+        <strong>Titular:</strong> UEI SAN ANTONIO CA<br />
+        <strong>Banco:</strong> Bancamiga  0172<br />
+        <strong>RIF:</strong> J-30392701-7<br />
+        <strong>Teléfono:</strong> 0424-8912975<br />
       </div>
     </div>
 
     <div class="caja-busqueda">
       <label for="inputBuscarCedula">Ingresa número de cédula del alumno o representante *</label>
       <div class="fila-buscar">
-        <input type="text" id="inputBuscarCedula" placeholder="Ej. 12345678 o V-12345678" />
+        <input
+          type="text"
+          id="inputBuscarCedula"
+          maxlength="12"
+          inputmode="text"
+          autocomplete="off"
+          placeholder="Ej. 12345678 o V-12345678"
+        />
         <button type="button" id="btnBuscarCedula" class="btn-buscar">Buscar</button>
       </div>
       <div id="mensajeBusqueda"></div>
     </div>
 
-    <form id="formPagoRepresentante" class="oculto">
+    <form id="formPagoRepresentante" class="oculto" novalidate autocomplete="off">
       <div class="layout-dos-columnas">
         <div class="columna-izquierda">
           <h2>Datos del Representante (Facturación)</h2>
@@ -321,7 +333,7 @@
             </div>
             <div>
               <label for="repDireccion">Dirección *</label>
-              <input type="text" id="repDireccion" readonly required />
+              <input type="text" id="repDireccion" required autocomplete="off" spellcheck="false" placeholder="Ingrese una dirección válida" />
             </div>
             <div>
               <label for="repTelefono">Teléfono *</label>
@@ -349,7 +361,14 @@
           <div class="grid">
             <div>
               <label for="montoUsd">Monto en USD ($) *</label>
-              <input type="number" step="0.01" min="0.01" id="montoUsd" required />
+              <input
+                type="text"
+                id="montoUsd"
+                inputmode="decimal"
+                autocomplete="off"
+                required
+                placeholder="Ej. 50 o 50.00"
+              />
             </div>
             <div>
               <label for="montoBs">Equivalente en Bolívares (Bs.)</label>
@@ -357,22 +376,29 @@
             </div>
             <div>
               <label for="nroReferencia">Número de Referencia *</label>
-              <input type="text" id="nroReferencia" required placeholder="Ej. 0012345678" />
+              <input
+                type="text"
+                id="nroReferencia"
+                required
+                maxlength="20"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="Ej. 0012345678"
+              />
             </div>
             <div>
               <label for="concepto">Concepto / Mes a pagar</label>
-              <input type="text" id="concepto" placeholder="Ej. Mensualidad: Septiembre 2026" />
+              <input type="text" id="concepto" readonly tabindex="-1" placeholder="Selecciona meses a pagar" />
             </div>
           </div>
 
           <p class="nota">
-            - Cada mensualidad tiene un valor fijo de <strong>$50 USD</strong>. Al seleccionar meses, se calcula el total en USD y su equivalente en Bs.<br />
-            - Al pulsar el botón, se registrará el pago, los meses seleccionados pasarán a <strong>En revisión (rojo)</strong> y se abrirá WhatsApp para enviar el capture.
+            - Cada mensualidad tiene un valor de <strong>$50 USD</strong>.<br />
           </p>
 
           <div class="acciones">
             <button type="submit" id="btnRegistrarYWhatsapp" class="btn-registrar-wa">
-              Registrar y enviar el capture por WhatsApp
+              Registrar Pago
             </button>
           </div>
 
@@ -381,7 +407,7 @@
 
         <div class="columna-derecha">
           <div id="cajaMesesPendientes" class="caja-deuda">
-            <strong>Meses del año escolar ($50 c/u):</strong>
+            <strong>PERIODO ESCOLAR 2026-2027</strong>
             <div class="leyenda-estados">
               <span class="leyenda-item"><span class="punto punto-pendiente"></span> Disponible</span>
               <span class="leyenda-item"><span class="punto punto-revision"></span> En revisión</span>
@@ -389,7 +415,7 @@
               <span class="leyenda-item"><span class="punto punto-rechazado"></span> Rechazado</span>
             </div>
             <div id="listaMesesPendientes" class="chips-meses"></div>
-            <div class="nota">Marca los meses a cancelar. Si un mes ya está en revisión o pagado, quedará bloqueado; si fue rechazado, podrás volver a seleccionarlo.</div>
+            <div class="nota">Marca el o los meses a cancelar. Si un mes está en revisión, quedará bloqueado; si fue rechazado, podrás volver a seleccionarlo.</div>
 
             <div class="resumen-total" id="estadoReportesAlumno" style="margin-bottom:14px;"></div>
 

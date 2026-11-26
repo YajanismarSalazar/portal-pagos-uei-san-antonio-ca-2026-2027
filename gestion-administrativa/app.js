@@ -639,23 +639,44 @@
       });
   }
 
+  function obtenerCarteraSolventeFiltrada() {
+    const fechaCorte = getFechaCorte();
+    const buscarEl = document.getElementById("buscarSolvente");
+    const texto = buscarEl ? buscarEl.value.trim() : "";
+
+    return registros
+      .map((r) => calcularMorosidad(r, fechaCorte))
+      .filter((item) => {
+        if (item.cantidadVencida > 0) return false;
+        if (!texto) return true;
+        return coincideBusquedaConCedula(
+          texto,
+          [item.seccion, item.alumno, item.representante, item.telefonos, item.condicion, item.mesesQueDebeTexto],
+          [item.ced, item.ced_rep]
+        );
+      });
+  }
+
   function actualizarContadores() {
     const fechaCorte = getFechaCorte();
     const enRevision = historialPagos.filter((p) => p.estado === "revision").length;
     const aprobados = historialPagos.filter((p) => p.estado === "aprobado").length;
     const rechazados = historialPagos.filter((p) => p.estado === "rechazado").length;
     const morosos = registros.filter((r) => calcularMorosidad(r, fechaCorte).cantidadVencida > 0).length;
+    const solventes = registros.filter((r) => calcularMorosidad(r, fechaCorte).cantidadVencida === 0).length;
 
     const elRev = document.getElementById("countRevision");
     const elApr = document.getElementById("countAprobados");
     const elRec = document.getElementById("countRechazados");
     const elMor = document.getElementById("countMorosos");
+    const elSolv = document.getElementById("countSolventes");
     const elAlu = document.getElementById("countAlumnos");
 
     if (elRev) elRev.textContent = String(enRevision);
     if (elApr) elApr.textContent = String(aprobados);
     if (elRec) elRec.textContent = String(rechazados);
     if (elMor) elMor.textContent = String(morosos);
+    if (elSolv) elSolv.textContent = String(solventes);
     if (elAlu) elAlu.textContent = String(registros.length);
   }
 
@@ -785,6 +806,38 @@
       </tr>`).join("");
   }
 
+  function renderSolventes() {
+    const fechaCorte = getFechaCorte();
+    const totalSolventes = registros.filter((r) => calcularMorosidad(r, fechaCorte).cantidadVencida === 0).length;
+    const countSolventes = document.getElementById("countSolventes");
+    if (countSolventes) countSolventes.textContent = String(totalSolventes);
+
+    const lista = obtenerCarteraSolventeFiltrada();
+    const resumen = document.getElementById("resumenSolventes");
+    if (resumen) {
+      resumen.textContent = `Mostrando ${lista.length} alumno(s) solvente(s) para la fecha de corte actual.`;
+    }
+
+    const tbody = document.getElementById("tbodySolventes");
+    if (!tbody) return;
+
+    if (!lista.length) {
+      tbody.innerHTML = `<tr><td colspan="7">No hay alumnos solventes para el filtro actual.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = lista.map((m) => `
+      <tr>
+        <td>${escaparHtml(m.seccion)}</td>
+        <td>${escaparHtml(m.ced)}</td>
+        <td>${escaparHtml(m.alumno)}</td>
+        <td>${escaparHtml(m.representante)}</td>
+        <td>${escaparHtml(m.telefonos)}</td>
+        <td><span class="tag tag-aprobado">${escaparHtml(m.condicion)}</span></td>
+        <td>${escaparHtml(m.mesesQueDebeTexto)}</td>
+      </tr>`).join("");
+  }
+
   function renderAlumnos() {
     const thead = document.getElementById("theadAlumnos");
     const tbody = document.getElementById("tbodyAlumnos");
@@ -826,6 +879,7 @@
     renderTablaPagos("aprobado", "tbodyAprobados", "buscarAprobados");
     renderTablaPagos("rechazado", "tbodyRechazados", "buscarRechazados");
     renderMorosos();
+    renderSolventes();
     renderAlumnos();
   }
 
@@ -867,6 +921,29 @@
     descargarCSV(`cartera_morosidad_${corteStr}.csv`, filas);
   }
 
+  function descargarSolventesCSV() {
+    const lista = obtenerCarteraSolventeFiltrada();
+    const fechaCorteEl = document.getElementById("fechaCorte");
+    const corteStr = fechaCorteEl && fechaCorteEl.value ? fechaCorteEl.value : "2026-11-24";
+    const filas = [
+      ["Fecha Corte", "Sección", "Cédula", "Alumno", "Representante", "Teléfonos", "Meses Vencidos", "Condición", "Detalle Vencido"]
+    ];
+    lista.forEach((m) => {
+      filas.push([
+        corteStr,
+        m.seccion,
+        m.ced,
+        m.alumno,
+        m.representante,
+        m.telefonos,
+        m.cantidadVencida,
+        m.condicion,
+        m.mesesQueDebeTexto
+      ]);
+    });
+    descargarCSV(`alumnos_solventes_${corteStr}.csv`, filas);
+  }
+
   function exportarPagos(tipo) {
     const lista = historialPagos.filter((p) => p.estado === tipo);
     const filas = [["Fecha", "Referencia", "Sección", "Alumno", "Representante", "Concepto", "Método", "Monto", "Estado", "Motivo"]];
@@ -901,7 +978,7 @@
       card.addEventListener("click", () => abrirVista(card.dataset.vista));
     });
 
-    const idsCambio = ["fechaCorte", "buscarMoroso", "filtroMesesVencidos", "buscarRevision", "buscarAprobados", "buscarRechazados", "buscarAlumno"];
+    const idsCambio = ["fechaCorte", "buscarMoroso", "buscarSolvente", "filtroMesesVencidos", "buscarRevision", "buscarAprobados", "buscarRechazados", "buscarAlumno"];
     idsCambio.forEach((id) => {
       const el = document.getElementById(id);
       if (el) {
@@ -960,9 +1037,11 @@
   window.cambiarEstadoPago = cambiarEstadoPago;
   window.abrirVista = abrirVista;
   window.renderMorosos = renderMorosos;
+  window.renderSolventes = renderSolventes;
   window.renderAlumnos = renderAlumnos;
   window.renderTodo = renderTodo;
   window.descargarCarteraCSV = descargarCarteraCSV;
+  window.descargarSolventesCSV = descargarSolventesCSV;
   window.exportarPagos = exportarPagos;
   window.imprimirVista = imprimirVista;
   window.abrirSelectorCsv = abrirSelectorCsv;

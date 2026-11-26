@@ -51,11 +51,65 @@
     return [];
   }
 
+  function escaparHtml(valor) {
+    return String(valor ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function sanitizarTextoPlano(valor, maxLen = 200) {
+    return String(valor ?? "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/[<>`]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, maxLen);
+  }
+
+  function limpiarEntradaCedula(valor) {
+    return String(valor ?? "")
+      .toUpperCase()
+      .replace(/[^0-9VEJR-]/g, "")
+      .slice(0, 12);
+  }
+
+  function esCedulaValida(valor) {
+    const limp = String(valor ?? "").trim().toUpperCase();
+    return /^(?:[VEJR]-?)?\d{4,9}$/.test(limp);
+  }
+
+  function limpiarReferenciaNumerica(valor) {
+    return String(valor ?? "")
+      .replace(/\D+/g, "")
+      .slice(0, 20);
+  }
+
+  function limpiarMontoUsd(valor) {
+    let limpio = String(valor ?? "")
+      .replace(/[^0-9.]/g, "");
+
+    const primerPunto = limpio.indexOf(".");
+    if (primerPunto !== -1) {
+      const antes = limpio.slice(0, primerPunto);
+      const despues = limpio.slice(primerPunto + 1).replace(/\./g, "").slice(0, 2);
+      limpio = `${antes || "0"}.${despues}`;
+    }
+
+    return limpio.slice(0, 10);
+  }
+
+  function esDireccionNoRegistrada(valor) {
+    const norm = normalizarTexto(valor);
+    return !norm || norm === "NO REGISTRADA EN LISTADO" || norm === "INGRESE UNA DIRECCION VALIDA";
+  }
+
   function normalizarTexto(val) {
-    return String(val || "")
+    return sanitizarTextoPlano(val, 200)
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .trim()
       .toUpperCase();
   }
 
@@ -100,7 +154,7 @@
   }
 
   function normalizarMesConAno(mesTexto) {
-    const limpio = String(mesTexto || "").trim();
+    const limpio = sanitizarTextoPlano(mesTexto, 40);
     const upper = normalizarTexto(limpio);
     const meses2026 = ["SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
     const meses2027 = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO"];
@@ -142,20 +196,22 @@
 
   async function enviarPagoASupabase(registroPago) {
     const metodoEl = document.getElementById("metodoPago") || document.getElementById("metodo");
-    const metodoValor = metodoEl && metodoEl.value ? metodoEl.value.trim() : "Transferencia / Pago Móvil";
+    const metodoValor = metodoEl && metodoEl.value
+      ? sanitizarTextoPlano(metodoEl.value, 80)
+      : "Transferencia / Pago Móvil";
     const mesesStr = Array.isArray(registroPago.mesesPagados) && registroPago.mesesPagados.length > 0
-      ? registroPago.mesesPagados.join(", ")
-      : String(registroPago.pago?.concepto || "").trim();
+      ? registroPago.mesesPagados.map((m) => sanitizarTextoPlano(m, 40)).join(", ")
+      : sanitizarTextoPlano(registroPago.pago?.concepto || "", 200);
 
     const montoBsNum = Number(registroPago.pago?.montoBs || 0) || 0;
     const tasaNum = Number(registroPago.tasaAplicada || 0) || 0;
 
     let payload = {
-      referencia: String(registroPago.pago?.nroReferencia || "").trim(),
-      alumno: String(registroPago.alumno?.nombreApellido || "").trim(),
-      cedula_alumno: String(registroPago.alumno?.cedula || "").trim(),
-      cedula_representante: String(registroPago.representante?.cedula || "").trim(),
-      seccion: String(registroPago.alumno?.gradoSeccion || "").trim(),
+      referencia: limpiarReferenciaNumerica(registroPago.pago?.nroReferencia || ""),
+      alumno: sanitizarTextoPlano(registroPago.alumno?.nombreApellido || "", 140),
+      cedula_alumno: sanitizarTextoPlano(registroPago.alumno?.cedula || "", 25),
+      cedula_representante: sanitizarTextoPlano(registroPago.representante?.cedula || "", 25),
+      seccion: sanitizarTextoPlano(registroPago.alumno?.gradoSeccion || "", 20),
       meses: mesesStr,
       metodo: metodoValor,
       monto: montoBsNum,
@@ -222,6 +278,22 @@
     const todos = leerEstadosMesesGlobal();
     const clave = obtenerClaveAlumno(alumno);
     const mapa = Object.assign({}, todos[clave] || {});
+
+    if (Array.isArray(alumno?.mesesPendientes)) {
+      const pendientesNorm = alumno.mesesPendientes.map((m) => normalizarTexto(m));
+      const mesesEvaluables2026 = ["Septiembre 2026", "Octubre 2026", "Noviembre 2026", "Diciembre 2026"];
+
+      mesesEvaluables2026.forEach((mesLabel) => {
+        if (esMesFijoPendiente(mesLabel)) return;
+        const mesUpper = normalizarTexto(mesLabel);
+        const estaPendiente = pendientesNorm.some(
+          (p) => p === mesUpper || mesUpper.startsWith(p) || p.startsWith(mesUpper.split(" ")[0])
+        );
+        if (!estaPendiente && !mapa[mesLabel]) {
+          mapa[mesLabel] = "aprobado";
+        }
+      });
+    }
 
     const cedAlu = normalizarCedula(alumno?.cedula);
     const nomAlu = normalizarTexto(alumno?.nombreApellido);
@@ -316,16 +388,20 @@
   function pintarTasaRepresentante(estadoTasa) {
     tasaActivaRepresentante = Number(estadoTasa?.tasa) || tasaActivaRepresentante;
     if (estadoTasa?.origen) {
-      origenTasaInterno = estadoTasa.origen;
+      origenTasaInterno = sanitizarTextoPlano(estadoTasa.origen, 100);
     }
 
     const infoTasaEl = document.getElementById("infoTasa");
     if (!infoTasaEl) return;
 
+    const fechaSegura = escaparHtml(estadoTasa?.fechaValor || new Date().toISOString().slice(0, 10));
+    const tasaSegura = tasaActivaRepresentante.toLocaleString("es-VE", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+
     infoTasaEl.innerHTML = `
       <div>
-        <strong>Tasa USD Activa:</strong> ${tasaActivaRepresentante.toLocaleString("es-VE", { minimumFractionDigits: 4, maximumFractionDigits: 4 })} Bs.
-        &nbsp;|&nbsp; <strong>Fecha:</strong> ${estadoTasa?.fechaValor || new Date().toISOString().slice(0, 10)}
+        <strong>Tasa BCV:</strong> ${escaparHtml(tasaSegura)} Bs.<br />
+        <br />
+        <strong>Fecha:</strong> ${fechaSegura}
       </div>
     `;
     calcularEquivalenteBs();
@@ -358,6 +434,42 @@
     });
   }
 
+  function actualizarConceptoYCalculoSinSobrescribirMonto() {
+    actualizarEstiloChips();
+
+    const checks = Array.from(document.querySelectorAll("#listaMesesPendientes input[type='checkbox']:checked:not(:disabled)"));
+    const conceptoInput = document.getElementById("concepto");
+
+    if (checks.length > 0) {
+      const mesesElegidos = checks.map((c) => sanitizarTextoPlano(c.value, 40));
+      if (conceptoInput) {
+        conceptoInput.value = `Mensualidad: ${mesesElegidos.join(", ")}`;
+      }
+    } else if (conceptoInput) {
+      conceptoInput.value = "";
+    }
+
+    calcularEquivalenteBs();
+  }
+
+  function sincronizarMesesDesdeMontoUsd() {
+    const inputUsd = document.getElementById("montoUsd");
+    const usd = parseFloat(inputUsd ? inputUsd.value : "");
+    const checkboxesDisponibles = Array.from(
+      document.querySelectorAll("#listaMesesPendientes input[type='checkbox']:not(:disabled)")
+    );
+
+    const cantidadMeses = Number.isFinite(usd) && usd > 0
+      ? Math.min(checkboxesDisponibles.length, Math.floor(usd / PRECIO_MENSUALIDAD_USD))
+      : 0;
+
+    checkboxesDisponibles.forEach((cb, index) => {
+      cb.checked = index < cantidadMeses;
+    });
+
+    actualizarConceptoYCalculoSinSobrescribirMonto();
+  }
+
   function sincronizarSeleccionMeses() {
     actualizarEstiloChips();
 
@@ -366,7 +478,7 @@
     const inputUsd = document.getElementById("montoUsd");
 
     if (checks.length > 0) {
-      const mesesElegidos = checks.map((c) => c.value);
+      const mesesElegidos = checks.map((c) => sanitizarTextoPlano(c.value, 40));
       if (conceptoInput) {
         conceptoInput.value = `Mensualidad: ${mesesElegidos.join(", ")}`;
       }
@@ -399,10 +511,10 @@
         return (cedAlu && pCed === cedAlu) || (nomAlu && pNom === nomAlu);
       })
       .map((p) => ({
-        ref: p.referencia || p.id,
-        concepto: p.meses || "Mensualidad",
-        estado: p.estado || "En revisión",
-        motivo: p.motivo || p.observacion || ""
+        ref: sanitizarTextoPlano(p.referencia || p.id || "", 30),
+        concepto: sanitizarTextoPlano(p.meses || "Mensualidad", 120),
+        estado: sanitizarTextoPlano(p.estado || "En revisión", 40),
+        motivo: sanitizarTextoPlano(p.motivo || p.observacion || "", 150)
       }));
 
     const pagosLocalesAlumno = leerHistorialPagosRep()
@@ -412,10 +524,10 @@
         return (cedAlu && pCed === cedAlu) || (nomAlu && pNom === nomAlu);
       })
       .map((p) => ({
-        ref: p.pago?.nroReferencia || p.id,
-        concepto: p.pago?.concepto || "Mensualidad",
-        estado: p.estado || "En revisión",
-        motivo: p.motivo || ""
+        ref: sanitizarTextoPlano(p.pago?.nroReferencia || p.id || "", 30),
+        concepto: sanitizarTextoPlano(p.pago?.concepto || "Mensualidad", 120),
+        estado: sanitizarTextoPlano(p.estado || "En revisión", 40),
+        motivo: sanitizarTextoPlano(p.motivo || "", 150)
       }));
 
     const combinados = pagosRemotosAlumno.length > 0 ? pagosRemotosAlumno : pagosLocalesAlumno;
@@ -428,8 +540,8 @@
     const itemsHtml = combinados.slice(0, 6).map((p) => {
       const est = p.estado || "En revisión";
       const color = est.toLowerCase().includes("aprob") ? "#15803d" : (est.toLowerCase().includes("rechaz") ? "#c2410c" : "#b91c1c");
-      const motivoTxt = p.motivo ? ` — <em>Motivo: ${p.motivo}</em>` : "";
-      return `<div style="margin-top:4px;">• Ref <strong>${p.ref}</strong> (${p.concepto}): <span style="color:${color};font-weight:bold;">${est}</span>${motivoTxt}</div>`;
+      const motivoTxt = p.motivo ? ` — <em>Motivo: ${escaparHtml(p.motivo)}</em>` : "";
+      return `<div style="margin-top:4px;">• Ref <strong>${escaparHtml(p.ref)}</strong> (${escaparHtml(p.concepto)}): <span style="color:${color};font-weight:bold;">${escaparHtml(est)}</span>${motivoTxt}</div>`;
     }).join("");
 
     box.innerHTML = `<strong>Estatus de pagos reportados:</strong>${itemsHtml}`;
@@ -439,8 +551,8 @@
     alumnoSeleccionadoActual = alumno;
     const nombreEl = document.getElementById("aluNombre");
     const secEl = document.getElementById("aluGradoSeccion");
-    if (nombreEl) nombreEl.value = alumno?.nombreApellido || "";
-    if (secEl) secEl.value = alumno?.gradoSeccion || "";
+    if (nombreEl) nombreEl.value = sanitizarTextoPlano(alumno?.nombreApellido || "", 140);
+    if (secEl) secEl.value = sanitizarTextoPlano(alumno?.gradoSeccion || "", 20);
 
     const cajaDeuda = document.getElementById("cajaMesesPendientes");
     const listaMeses = document.getElementById("listaMesesPendientes");
@@ -475,19 +587,22 @@
       filaTop.appendChild(document.createTextNode(mes));
       label.appendChild(filaTop);
 
-      const tagEstado = document.createElement("span");
-      tagEstado.className = "chip-estado-tag";
+      let textoEstado = "";
       if (estadoMes === "revision") {
-        tagEstado.textContent = "En revisión";
+        textoEstado = "En revisión";
       } else if (estadoMes === "aprobado") {
-        tagEstado.textContent = "Pagado";
+        textoEstado = "Pagado";
       } else if (estadoMes === "rechazado") {
-        tagEstado.textContent = "Rechazado (reintentar)";
-      } else {
-        tagEstado.textContent = fijoPendiente ? "Pendiente ($50)" : "$50";
+        textoEstado = "Rechazado (reintentar)";
       }
 
-      label.appendChild(tagEstado);
+      if (textoEstado) {
+        const tagEstado = document.createElement("span");
+        tagEstado.className = "chip-estado-tag";
+        tagEstado.textContent = textoEstado;
+        label.appendChild(tagEstado);
+      }
+
       listaMeses.appendChild(label);
     });
 
@@ -505,10 +620,17 @@
     const repDireccionEl = document.getElementById("repDireccion");
     const repTelefonoEl = document.getElementById("repTelefono");
 
-    if (repNombreEl) repNombreEl.value = rep.nombreApellido || "";
-    if (repCedulaEl) repCedulaEl.value = rep.cedula || "";
-    if (repDireccionEl) repDireccionEl.value = rep.direccion || "";
-    if (repTelefonoEl) repTelefonoEl.value = rep.telefono || "";
+    const dirRaw = sanitizarTextoPlano(rep.direccion || "", 200);
+    const sinDireccion = esDireccionNoRegistrada(dirRaw);
+
+    if (repNombreEl) repNombreEl.value = sanitizarTextoPlano(rep.nombreApellido || "", 140);
+    if (repCedulaEl) repCedulaEl.value = sanitizarTextoPlano(rep.cedula || "", 25);
+    if (repDireccionEl) {
+      repDireccionEl.value = sinDireccion ? "" : dirRaw;
+      repDireccionEl.placeholder = "Ingrese una dirección válida";
+      repDireccionEl.readOnly = !sinDireccion;
+    }
+    if (repTelefonoEl) repTelefonoEl.value = sanitizarTextoPlano(rep.telefono || "", 80);
 
     const contSelector = document.getElementById("contenedorSelectorAlumno");
     const selectAlumno = document.getElementById("selectorAlumno");
@@ -519,7 +641,7 @@
         alumnos.forEach((alu, idx) => {
           const opt = document.createElement("option");
           opt.value = String(idx);
-          opt.textContent = `${alu.nombreApellido} (${alu.gradoSeccion})`;
+          opt.textContent = `${sanitizarTextoPlano(alu.nombreApellido, 140)} (${sanitizarTextoPlano(alu.gradoSeccion, 20)})`;
           selectAlumno.appendChild(opt);
         });
         selectAlumno.onchange = () => {
@@ -537,13 +659,35 @@
     if (msgEstadoEl) msgEstadoEl.textContent = "";
   }
 
+  function mostrarAvisoFormulario(mensaje, esError = true) {
+    const msgEstadoEl = document.getElementById("mensajeEstado");
+    if (!msgEstadoEl) return;
+    msgEstadoEl.style.color = esError ? "#b91c1c" : "#15803d";
+    msgEstadoEl.textContent = sanitizarTextoPlano(mensaje, 220);
+  }
+
   async function manejarBusquedaCedula() {
     const inputCed = document.getElementById("inputBuscarCedula");
     const msgBusq = document.getElementById("mensajeBusqueda");
     const form = document.getElementById("formPagoRepresentante");
 
+    const valorLimpio = limpiarEntradaCedula(inputCed ? inputCed.value : "");
+    if (inputCed) inputCed.value = valorLimpio;
+
+    if (!valorLimpio || !esCedulaValida(valorLimpio)) {
+      if (form) form.classList.add("oculto");
+      registroActual = null;
+      alumnoSeleccionadoActual = null;
+      if (msgBusq) {
+        msgBusq.style.color = "#b91c1c";
+        msgBusq.textContent = "Ingresa un número de cédula válido.";
+      }
+      if (inputCed) inputCed.focus();
+      return;
+    }
+
     await obtenerPagosDesdeSupabase();
-    const encontrado = buscarPorCedula(inputCed ? inputCed.value : "");
+    const encontrado = buscarPorCedula(valorLimpio);
     if (!encontrado) {
       if (form) form.classList.add("oculto");
       registroActual = null;
@@ -557,7 +701,7 @@
 
     if (msgBusq) {
       msgBusq.style.color = "#0369a1";
-      msgBusq.textContent = `Datos encontrados para ${encontrado.representante.nombreApellido}. Selecciona los meses y completa los datos del pago.`;
+      msgBusq.textContent = "Selecciona el o los meses a cancelar y completa los datos del pago.";
     }
     cargarRegistroEnFormulario(encontrado);
   }
@@ -565,13 +709,14 @@
   function construirUrlWhatsapp(datosPago, fechaLegible) {
     const mensaje =
       `Reporte de Pago - *UEI SAN ANTONIO CA*\n` +
-      `- Representante: ${datosPago.representante.nombreApellido}\n` +
-      `- Cédula Representante: ${datosPago.representante.cedula}\n` +
-      `- Alumno: ${datosPago.alumno.nombreApellido} (${datosPago.alumno.gradoSeccion})\n` +
-      `- Concepto: ${datosPago.pago.concepto}\n` +
+      `- Representante: ${sanitizarTextoPlano(datosPago.representante.nombreApellido, 140)}\n` +
+      `- Cédula Representante: ${sanitizarTextoPlano(datosPago.representante.cedula, 25)}\n` +
+      `- Dirección Representante: ${sanitizarTextoPlano(datosPago.representante.direccion, 200)}\n` +
+      `- Alumno: ${sanitizarTextoPlano(datosPago.alumno.nombreApellido, 140)} (${sanitizarTextoPlano(datosPago.alumno.gradoSeccion, 20)})\n` +
+      `- Concepto: ${sanitizarTextoPlano(datosPago.pago.concepto, 200)}\n` +
       `- Monto USD: $${datosPago.pago.montoUsd} (Equivalente: ${formatearBs(datosPago.pago.montoBs)} | Tasa: ${datosPago.tasaAplicada} Bs.)\n` +
-      `- Nro. Referencia: ${datosPago.pago.nroReferencia}\n` +
-      `- Fecha: ${fechaLegible}`;
+      `- Nro. Referencia: ${limpiarReferenciaNumerica(datosPago.pago.nroReferencia)}\n` +
+      `- Fecha: ${sanitizarTextoPlano(fechaLegible, 50)}`;
 
     return `https://wa.me/${WHATSAPP_INSTITUCION}?text=${encodeURIComponent(mensaje)}`;
   }
@@ -596,28 +741,114 @@
       }
     });
 
+    const inputBuscarCedulaEl = document.getElementById("inputBuscarCedula");
+    if (inputBuscarCedulaEl) {
+      inputBuscarCedulaEl.addEventListener("input", () => {
+        const filtrada = limpiarEntradaCedula(inputBuscarCedulaEl.value);
+        if (inputBuscarCedulaEl.value !== filtrada) {
+          inputBuscarCedulaEl.value = filtrada;
+        }
+      });
+      inputBuscarCedulaEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          manejarBusquedaCedula();
+        }
+      });
+    }
+
     document.getElementById("btnBuscarCedula")?.addEventListener("click", manejarBusquedaCedula);
-    document.getElementById("inputBuscarCedula")?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        manejarBusquedaCedula();
-      }
-    });
+
+    const repDirEl = document.getElementById("repDireccion");
+    if (repDirEl) {
+      repDirEl.addEventListener("input", () => {
+        const limpia = String(repDirEl.value ?? "").replace(/[<>`]/g, "").slice(0, 200);
+        if (repDirEl.value !== limpia) {
+          repDirEl.value = limpia;
+        }
+      });
+    }
+
+    const refEl = document.getElementById("nroReferencia");
+    if (refEl) {
+      refEl.addEventListener("input", () => {
+        const soloNumeros = limpiarReferenciaNumerica(refEl.value);
+        if (refEl.value !== soloNumeros) {
+          refEl.value = soloNumeros;
+        }
+      });
+    }
+
+    const conceptoEl = document.getElementById("concepto");
+    if (conceptoEl) {
+      conceptoEl.addEventListener("keydown", (e) => e.preventDefault());
+      conceptoEl.addEventListener("paste", (e) => e.preventDefault());
+    }
 
     const montoUsdEl = document.getElementById("montoUsd");
     if (montoUsdEl) {
-      montoUsdEl.addEventListener("input", calcularEquivalenteBs);
+      montoUsdEl.addEventListener("keydown", (e) => {
+        const teclasPermitidas = [
+          "Backspace", "Delete", "Tab", "Escape", "Enter",
+          "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"
+        ];
+        if (teclasPermitidas.includes(e.key) || e.ctrlKey || e.metaKey) return;
+        if (e.key === ".") {
+          if (montoUsdEl.value.includes(".")) e.preventDefault();
+          return;
+        }
+        if (!/^[0-9]$/.test(e.key)) {
+          e.preventDefault();
+        }
+      });
+
+      montoUsdEl.addEventListener("input", () => {
+        const filtrado = limpiarMontoUsd(montoUsdEl.value);
+        if (montoUsdEl.value !== filtrado) {
+          montoUsdEl.value = filtrado;
+        }
+        sincronizarMesesDesdeMontoUsd();
+      });
     }
 
     const form = document.getElementById("formPagoRepresentante");
     if (form) {
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        if (!registroActual || !alumnoSeleccionadoActual) return;
+        if (!registroActual || !alumnoSeleccionadoActual) {
+          mostrarAvisoFormulario("Primero busca y selecciona un alumno válido.");
+          return;
+        }
 
-        const usd = parseFloat(document.getElementById("montoUsd").value);
-        const nroRef = document.getElementById("nroReferencia").value.trim();
-        if (!Number.isFinite(usd) || usd <= 0 || !nroRef) return;
+        const dirIngresada = sanitizarTextoPlano(repDirEl ? repDirEl.value : "", 200);
+        if (esDireccionNoRegistrada(dirIngresada)) {
+          mostrarAvisoFormulario("Ingrese una dirección válida.");
+          if (repDirEl) {
+            repDirEl.value = "";
+            repDirEl.placeholder = "Ingrese una dirección válida";
+            repDirEl.focus();
+          }
+          return;
+        }
+
+        const montoLimpio = limpiarMontoUsd(document.getElementById("montoUsd").value);
+        if (montoUsdEl) montoUsdEl.value = montoLimpio;
+        const usd = parseFloat(montoLimpio);
+
+        const nroRef = limpiarReferenciaNumerica(document.getElementById("nroReferencia").value);
+        if (refEl) refEl.value = nroRef;
+
+        if (!Number.isFinite(usd) || usd <= 0) {
+          mostrarAvisoFormulario("Ingresa o selecciona un monto válido en USD.");
+          if (montoUsdEl) montoUsdEl.focus();
+          return;
+        }
+
+        if (!nroRef || !/^\d{4,20}$/.test(nroRef)) {
+          mostrarAvisoFormulario("Ingrese el numero de referencia.");
+          if (refEl) refEl.focus();
+          return;
+        }
 
         const ahora = new Date();
         const fechaLegible = formatearFechaHoraMensaje(ahora);
@@ -626,8 +857,13 @@
           document.querySelectorAll("#listaMesesPendientes input[type='checkbox']:checked:not(:disabled)")
         ).map((cb) => normalizarMesConAno(cb.value));
 
-        const conceptoFinal = document.getElementById("concepto")?.value.trim() ||
-          (mesesSeleccionados.length > 0 ? `Mensualidad: ${mesesSeleccionados.join(", ")}` : "General");
+        const conceptoFinal = mesesSeleccionados.length > 0
+          ? `Mensualidad: ${mesesSeleccionados.join(", ")}`
+          : sanitizarTextoPlano(document.getElementById("concepto")?.value || "General", 200);
+
+        if (conceptoEl) {
+          conceptoEl.value = conceptoFinal;
+        }
 
         const registro = {
           id: "REP-" + ahora.getTime(),
@@ -636,15 +872,15 @@
           tasaAplicada: tasaActivaRepresentante,
           origenTasa: origenTasaInterno,
           representante: {
-            nombreApellido: document.getElementById("repNombre").value.trim(),
-            cedula: document.getElementById("repCedula").value.trim(),
-            direccion: document.getElementById("repDireccion").value.trim(),
-            telefono: document.getElementById("repTelefono").value.trim()
+            nombreApellido: sanitizarTextoPlano(document.getElementById("repNombre").value, 140),
+            cedula: sanitizarTextoPlano(document.getElementById("repCedula").value, 25),
+            direccion: dirIngresada,
+            telefono: sanitizarTextoPlano(document.getElementById("repTelefono").value, 80)
           },
           alumno: {
-            cedula: alumnoSeleccionadoActual.cedula || "",
-            nombreApellido: document.getElementById("aluNombre").value.trim(),
-            gradoSeccion: document.getElementById("aluGradoSeccion").value
+            cedula: sanitizarTextoPlano(alumnoSeleccionadoActual.cedula || "", 25),
+            nombreApellido: sanitizarTextoPlano(document.getElementById("aluNombre").value, 140),
+            gradoSeccion: sanitizarTextoPlano(document.getElementById("aluGradoSeccion").value, 20)
           },
           mesesPagados: mesesSeleccionados,
           pago: {
@@ -685,8 +921,6 @@
         window.open(urlWa, "_blank", "noopener");
 
         renderizarAlumno(alumnoSeleccionadoActual);
-        const refEl = document.getElementById("nroReferencia");
-        const conceptoEl = document.getElementById("concepto");
         const montoBsEl = document.getElementById("montoBs");
         if (refEl) refEl.value = "";
         if (conceptoEl) conceptoEl.value = "";
@@ -697,7 +931,7 @@
         if (msgEl) {
           msgEl.style.color = guardadoEnNube ? "#15803d" : "#b45309";
           msgEl.textContent = guardadoEnNube
-            ? `Pago registrado en Supabase (Ref: ${registro.pago.nroReferencia}). Los meses seleccionados pasaron a "En revisión" y se abrió WhatsApp.`
+            ? `Pago (Ref: ${registro.pago.nroReferencia}).En revisión`
             : `Pago guardado localmente (Ref: ${registro.pago.nroReferencia}), pero hubo un problema al sincronizar con Supabase. Revisa la consola.`;
         }
       });
