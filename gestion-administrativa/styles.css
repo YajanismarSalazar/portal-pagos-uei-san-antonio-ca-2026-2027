@@ -158,10 +158,10 @@ body {
 
 .membrete-der {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
   font-size: 0.85rem;
 }
 
@@ -515,7 +515,7 @@ tbody tr:nth-child(even) {
 
   .membrete-der {
     width: 100%;
-    justify-content: flex-start;
+    align-items: flex-start;
   }
 }
 
